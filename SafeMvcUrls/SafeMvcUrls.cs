@@ -284,7 +284,7 @@ namespace MonkeyBusters.Web.Mvc
     /// <summary>
     /// Extensions for the creation of urls to actions in a name- and type-safe manner.
     /// </summary>
-    public static class SaveMvcUrls
+    public static class SafeMvcUrls
     {
         /// <summary>
         /// Returns a fake proxy controller the action methods of which, instead of their usual implementation,

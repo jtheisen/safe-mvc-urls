@@ -47,7 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Compatibility.cs" />
-    <Compile Include="SaveMvcUrls.cs" />
+    <Compile Include="SafeMvcUrls.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
