@@ -3,7 +3,7 @@
   <metadata>
     <id>MonkeBusters.Web.Mvc.SafeUrls</id>
     <version>1.0.0</version>
-    <title>Type- and name-safe urls with ASP.NET MVC</title>
+    <title>Safe urls with ASP.NET MVC</title>
 	<authors>
 	Jens Theisen
 	</authors>
@@ -11,7 +11,7 @@
     <projectUrl>https://github.com/jtheisen/safe-mvc-urls</projectUrl>
     <!--<iconUrl>http://ICON_URL_HERE_OR_DELETE_THIS_LINE</iconUrl>-->
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>Use "@(Url.To&lt;MyController>().MyAction(someparam: "somevalue"))" to create your urls in a type- and name-safe manner - both in views and controllers. See the project page for a quick introduction.</description>
+    <description>Use "@(Url.To&lt;MyController>().MyAction(someparam: "somevalue"))" to create your urls in a type- and name-safe manner - both in views and controllers. See the project site for a quick introduction.</description>
     <!--<releaseNotes>Summary of changes made in this release of the package.</releaseNotes>-->
     <copyright>Copyright 2014 MonkeyBusters</copyright>
     <tags>monkeybusters urls mvc</tags>

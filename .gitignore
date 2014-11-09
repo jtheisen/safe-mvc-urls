@@ -9,6 +9,7 @@
 *.dbmdl
 *.opensdf
 *.sdf
+*.nupkg
 packages
 ipch
 Debug
