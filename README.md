@@ -34,7 +34,7 @@ and get what you expect as the url:
 
 # How do I get started?
 
-- Install the NuGet package.
+- Install the [NuGet package](http://www.nuget.org/packages/MonkeBusters.Web.Mvc.SafeUrls/).
 - Add the `MonkeyBusters.Web.Mvc` namespace to your Web.Config for your views along with those you already have. It will then look something like this:
 ```
   <system.web.webPages.razor>
@@ -47,7 +47,7 @@ and get what you expect as the url:
         <add namespace="MonkeyBusters.Web.Mvc"/>
         ...
 ```
-- Add the `MonkeyBusters.Web.Mvc.SafeMvcUrls` assembly to your Web.Config in the `compilation` section. It will then look something like this:
+- Add the `MonkeyBusters.Web.Mvc.SafeUrls` assembly to your Web.Config in the `compilation` section. It will then look something like this:
 ```
   <system.web>
     <compilation debug="true" targetFramework="4.5">
