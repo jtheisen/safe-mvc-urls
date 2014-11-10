@@ -458,38 +458,38 @@ namespace MonkeyBusters.Web.Mvc
 
             void Test()
             {
-                AssertEqual(Url.To<GoodController>().Trivial(), "/Good/Trivial");
+AssertEqual(Url.To<GoodController>().Trivial(), "/Good/Trivial");
 
-                AssertEqual(Url.To<GoodController>(protocol: "https").Trivial(), "https://www.example.com/Good/Trivial");
-                AssertEqual(Url.To<GoodController>(hostname: "localhost").Trivial(), "http://localhost/Good/Trivial");
+AssertEqual(Url.To<GoodController>(protocol: "https").Trivial(), "https://www.example.com/Good/Trivial");
+AssertEqual(Url.To<GoodController>(hostname: "localhost").Trivial(), "http://localhost/Good/Trivial");
 
-                AssertEqual(Url.To<GoodController>().Simple("foo"), "/Good/Simple?s=foo");
-                AssertEqual(Url.To<GoodController>().Simple(42), "/Good/Simple?i=42");
-                AssertEqual(Url.To<GoodController>().Simple(someGuid), "/Good/Simple?g=" + someGuid);
+AssertEqual(Url.To<GoodController>().Simple("foo"), "/Good/Simple?s=foo");
+AssertEqual(Url.To<GoodController>().Simple(42), "/Good/Simple?i=42");
+AssertEqual(Url.To<GoodController>().Simple(someGuid), "/Good/Simple?g=" + someGuid);
 
-                AssertEqual(Url.To<GoodController>().WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
-                AssertEqual(Url.To<GoodController>().WithDefaultString("default"), "/Good/WithDefaultString");
-                AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
+AssertEqual(Url.To<GoodController>().WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
+AssertEqual(Url.To<GoodController>().WithDefaultString("default"), "/Good/WithDefaultString");
+AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
 
-                AssertEqual(Url.To<GoodController>().WithDefaultInt32(42), "/Good/WithDefaultInt32?i=42");
-                AssertEqual(Url.To<GoodController>().WithDefaultInt32(-1), "/Good/WithDefaultInt32");
-                AssertEqual(Url.To<GoodController>().WithDefaultInt32(), "/Good/WithDefaultInt32");
+AssertEqual(Url.To<GoodController>().WithDefaultInt32(42), "/Good/WithDefaultInt32?i=42");
+AssertEqual(Url.To<GoodController>().WithDefaultInt32(-1), "/Good/WithDefaultInt32");
+AssertEqual(Url.To<GoodController>().WithDefaultInt32(), "/Good/WithDefaultInt32");
 
-                AssertEqual(Url.To<GoodController>().WithDefaultGuid(), "/Good/WithDefaultGuid");
-                AssertEqual(Url.To<GoodController>().WithDefaultGuid(Guid.Empty), "/Good/WithDefaultGuid");
-                AssertEqual(Url.To<GoodController>().WithDefaultGuid(someGuid), "/Good/WithDefaultGuid?g=" + someGuid);
+AssertEqual(Url.To<GoodController>().WithDefaultGuid(), "/Good/WithDefaultGuid");
+AssertEqual(Url.To<GoodController>().WithDefaultGuid(Guid.Empty), "/Good/WithDefaultGuid");
+AssertEqual(Url.To<GoodController>().WithDefaultGuid(someGuid), "/Good/WithDefaultGuid?g=" + someGuid);
 
-                AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
-                AssertEqual(Url.To<GoodController>(new { x = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?x=bar&s=foo");
-                AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
-                AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString(), "/Good/WithDefaultString?s=bar");
-                AssertEqual(Url.To<GoodController>(new { s = "default" }).WithDefaultString(), "/Good/WithDefaultString?s=default");
+AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
+AssertEqual(Url.To<GoodController>(new { x = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?x=bar&s=foo");
+AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
+AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString(), "/Good/WithDefaultString?s=bar");
+AssertEqual(Url.To<GoodController>(new { s = "default" }).WithDefaultString(), "/Good/WithDefaultString?s=default");
 
-                AssertEqual(Url.To<GoodController>().NamedParams(b: "x"), "/Good/NamedParams?b=x");
+AssertEqual(Url.To<GoodController>().NamedParams(b: "x"), "/Good/NamedParams?b=x");
 
-                AssertEqual(Url.To<GoodController>().ExplicitlyNamed(), "/Good/explicitly-named");
-                AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
-                AssertEqual(Url.To<GoodController>().Asyncy("foo"), "/Good/Asyncy?s=foo");
+AssertEqual(Url.To<GoodController>().ExplicitlyNamed(), "/Good/explicitly-named");
+AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
+AssertEqual(Url.To<GoodController>().Asyncy("foo"), "/Good/Asyncy?s=foo");
 
                 try
                 {

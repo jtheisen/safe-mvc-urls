@@ -34,8 +34,8 @@ and get what you expect as the url:
 
 # How do I get started?
 
-- Install the [NuGet package](http://www.nuget.org/packages/MonkeBusters.Web.Mvc.SafeUrls/).
-- Add the `MonkeyBusters.Web.Mvc` namespace to your Web.Config for your views along with those you already have. It will then look something like this:
+- Install the [NuGet package](https://www.nuget.org/packages/MonkeBusters.Web.Mvc.SafeUrls).
+- Add the `MonkeyBusters.Web.Mvc` namespace to your Web.Config for your views along with those you already have. You can alternatively use a `using` statement in your view. It will then look something like this:
 ```
   <system.web.webPages.razor>
     <pages pageBaseType="System.Web.Mvc.WebViewPage">
@@ -67,7 +67,7 @@ and get what you expect as the url:
 
 The helper works by subclassing and overriding your controllers. That requires your controllers to allow that: They mustn't be final, all actions must be virtual and all return values must be one of the two that SafeMvcUrls can deal with: Either `ActionResult` or `Task<ActionResult>`.
 
-If you use the `.To<C>()` extension method on a controller that doesn't match these requirements, you will get an exception at this point for your own safety: We don't want that you actually call your actions where you merely wanted an url.
+If you use the `.To<C>()` extension method on a controller that doesn't match these requirements, in most cases you will get an exception at this point for your own safety: We don't want that you actually call your actions where you merely wanted an url.
 
 For more details just look at the tests at the end of [`SafeMvcUrls.cs`](https://github.com/jtheisen/safe-mvc-urls/blob/master/SafeMvcUrls/SafeMvcUrls.cs).
 
