@@ -1,5 +1,6 @@
 ﻿using Castle.DynamicProxy;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -172,6 +173,111 @@ namespace MonkeyBusters.Web.Mvc
 
     #endregion
 
+    #region AreaRegistration discovery
+
+    class AreaCache
+    {
+		static Lazy<AreaCache> instance = new Lazy<AreaCache>(() => new AreaCache());
+
+        private AreaCache() { }
+
+        internal static String GetArea(Type controllerType)
+        {
+            return instance.Value.GetControllerArea(controllerType);
+        }
+
+        String GetControllerArea(Type controllerType)
+        {
+            String value;
+
+            if (controllerToArea.TryGetValue(controllerType, out value)) return value;
+
+            controllerToArea[controllerType] = value = SearchForControllerArea(controllerType);
+
+            return value;
+        }
+
+        String SearchForControllerArea(Type controllerType)
+        {
+            lock (typeof(AreaCache))
+            {
+                EnsureAssemblyChecked(controllerType.Assembly);
+
+                var ns = controllerType.Namespace;
+
+                var fragments = ns.Split('.');
+
+                for (int i = fragments.Length; i > 0; --i)
+                {
+                    var subpath = String.Join(".", fragments.Take(i));
+
+                    if (namespaceToArea.ContainsKey(subpath))
+                    {
+                        return namespaceToArea[subpath];
+                    }
+                }
+
+                return null;
+            }
+        }
+
+        void EnsureAssemblyChecked(Assembly assembly)
+        {
+            if (checkedAssemblies.Contains(assembly)) return;
+
+            var registrationTypes =
+                assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(AreaRegistration)));
+
+            foreach (var registrationType in registrationTypes)
+            {
+                var registration = Activator.CreateInstance(registrationType) as AreaRegistration;
+
+                if (areasToRegistrations.ContainsKey(registration.AreaName))
+                {
+                    var formerType = areasToRegistrations[registration.AreaName];
+
+                    throw new Exception(String.Format(
+                        "Area '{0}' has multiple AreaRegistrations classes defined: {1} in {2} and {3} in {4}.",
+                        registration.AreaName,
+                        registrationType.FullName, registrationType.AssemblyQualifiedName,
+                        formerType.FullName, formerType.AssemblyQualifiedName
+                        ));
+                }
+
+                areasToRegistrations.Add(registration.AreaName, registrationType);
+
+                if (namespaceToRegistration.ContainsKey(registrationType.Namespace))
+                {
+                    var formerType = namespaceToRegistration[registrationType.Namespace];
+
+                    throw new Exception(String.Format(
+                        "Namespace '{0}' contains multiple AreaRegistrations classes: {1} in {2} and {3} in {4}",
+                        registrationType.Namespace,
+                        registrationType.FullName, registrationType.AssemblyQualifiedName,
+                        formerType.FullName, formerType.AssemblyQualifiedName
+                        ));
+                }
+
+                namespaceToRegistration.Add(registrationType.Namespace, registrationType);
+                namespaceToArea.Add(registrationType.Namespace, registration.AreaName);
+            }
+
+            checkedAssemblies.Add(assembly);
+        }
+
+        HashSet<Assembly> checkedAssemblies = new HashSet<Assembly>();
+
+        Dictionary<String, Type> areasToRegistrations = new Dictionary<String, Type>();
+
+        Dictionary<String, Type> namespaceToRegistration = new Dictionary<String, Type>();
+
+        Dictionary<String, String> namespaceToArea = new Dictionary<String, String>();
+
+        ConcurrentDictionary<Type, String> controllerToArea = new ConcurrentDictionary<Type, String>();
+    }
+
+    #endregion
+
     #region The IInterceptor implementation doing the main work
 
     class ActionUrlCreatingInterceptor : IInterceptor
@@ -208,6 +314,8 @@ namespace MonkeyBusters.Web.Mvc
 
             if (actionDescriptor == null) throw new Exception(String.Format("You called a controller method {0} which MVC thinks is not an action on the helper returned by one of the *To() overloads.", invocation.Method));
 
+            var area = AreaCache.GetArea(controllerType);
+
             // Strange that ActionDescriptor.ActionName doesn't always return the action's name...
             var actionNameAttribute = actionDescriptor.MethodInfo.GetCustomAttribute<ActionNameAttribute>();
             var actionName = actionNameAttribute != null ? actionNameAttribute.Name : actionDescriptor.ActionName;
@@ -223,6 +331,11 @@ namespace MonkeyBusters.Web.Mvc
                 {
                     values[kvp.Key] = kvp.Value;
                 }
+            }
+
+            if (area != null)
+            {
+                values["area"] = area;
             }
 
             var parameters = invocation.Method.GetParameters();
@@ -354,8 +467,37 @@ namespace MonkeyBusters.Web.Mvc
 
     namespace Tests
     {
+        namespace SpecialArea
+        {
+            namespace Controllers
+            {
+                public class InSpecialAreaController : Controller
+                {
+                    public virtual ActionResult Index() { return View(); }
+                }
+            }
+
+            public class SomeAreaRegistration : AreaRegistration
+            {
+                public override string AreaName { get { return "SpecialAreaName"; } }
+
+                public override void RegisterArea(AreaRegistrationContext context)
+                {
+                    context.MapRoute(
+                        "MyArea_default",
+                        "MyArea2/{controller}/{action}/{id}",
+                        new { action = "Index", id = UrlParameter.Optional }
+                    );
+                }
+            }
+        }
+
+    }
+    namespace Tests
+    {
         using System.Web;
         using NameValueCollection = System.Collections.Specialized.NameValueCollection;
+        using InSpecialAreaController = SpecialArea.Controllers.InSpecialAreaController;
 
         public class GoodController : Controller
         {
@@ -490,6 +632,9 @@ AssertEqual(Url.To<GoodController>().NamedParams(b: "x"), "/Good/NamedParams?b=x
 AssertEqual(Url.To<GoodController>().ExplicitlyNamed(), "/Good/explicitly-named");
 AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
 AssertEqual(Url.To<GoodController>().Asyncy("foo"), "/Good/Asyncy?s=foo");
+
+                // How do we test this?
+//AssertEqual(Url.To<InSpecialAreaController>().Index(), "/SpecialAreaName/InSpecialArea");
 
                 try
                 {
