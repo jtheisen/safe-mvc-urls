@@ -14,7 +14,7 @@ public class MyController : Controller
 }
 ```
 
-your can create urls in views with
+you can create urls in views with
 
 ```
 <a href="@(Url.To<MyController>().MyAction("foo", 42))">link</a>
