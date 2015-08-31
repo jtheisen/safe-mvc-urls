@@ -13,7 +13,6 @@
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <summary>Type- and name-safe urls with ASP.NET MVC.</summary>
 	<description>Use "@(Url.To&lt;MyController>().MyAction(someparam: "somevalue"))" to create your urls in a type- and name-safe manner - both in views and controllers. See the project site for a quick introduction.</description>
-    <releaseNotes>Support for MVC Areas</releaseNotes>
     <copyright>Copyright 2014 MonkeyBusters</copyright>
     <tags>monkeybusters safemvcurls safemvc safeurls urls mvc</tags>
   </metadata>
