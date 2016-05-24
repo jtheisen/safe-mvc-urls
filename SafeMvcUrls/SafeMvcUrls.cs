@@ -2,26 +2,209 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Web.Mvc;
+using System.Web.Mvc.Html;
 using System.Web.Routing;
 
 namespace MonkeyBusters.Web.Mvc
 {
-    #region The stringigyable return values
+    #region Aggregates
 
-    class StringifiableResult : ActionResult
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
+    public class MvcParameterAggregateAttribute : Attribute
     {
-        public StringifiableResult(String txt)
+    }
+
+    abstract class MvcAggregateHelper
+    {
+        internal static void AddValues(RouteValueDictionary dict, Type type, Object aggregate)
         {
-            this.txt = txt;
+            var helperType = typeof(MvcAggregateHelper<>).GetGenericTypeDefinition().MakeGenericType(type);
+
+            var helper = Activator.CreateInstance(helperType) as MvcAggregateHelper;
+
+            helper.AddValues(dict, aggregate);
+        }
+
+        protected abstract void AddValues(RouteValueDictionary dict, Object aggregate);
+    }
+
+    class MvcAggregateHelper<A> : MvcAggregateHelper
+        where A : class, new()
+    {
+        protected override void AddValues(RouteValueDictionary dict, object untypedAggregate)
+        {
+            var typedAggregate = untypedAggregate as A;
+
+            if (typedAggregate == null) return;
+
+            var type = typeof(A);
+
+            var properties = type.GetProperties();
+
+            foreach (var property in properties)
+            {
+                var def = property.GetValue(defaultAggregate, null);
+                var val = property.GetValue(untypedAggregate, null);
+
+                if (def != null && val == null)
+                {
+                    dict.Add(property.Name, null);
+                }
+                else if (val != null && !val.Equals(def))
+                {
+                    dict.Add(property.Name, val);
+                }
+            }
+        }
+
+        A defaultAggregate = new A();
+    }
+
+    #endregion
+
+    #region The mvc action expression results
+
+    /// <summary>
+    /// This class represents an MVC endpoint as defined through an action method
+    /// on a controller. Instances of this object correspond roughly to URLs through
+    /// the MVC routing system.
+    /// SafeMvcUrls creates those objects as intermediaries before converting them
+    /// to simple URL strings, as they are often useful themselves.
+    /// </summary>
+    public class MvcActionExpression
+    {
+        /// <summary>
+        /// The controller name.
+        /// </summary>
+        public String ControllerName { get; set; }
+
+        /// <summary>
+        /// The action name.
+        /// </summary>
+        public String ActionName { get; set; }
+
+        /// <summary>
+        /// The controller descriptor.
+        /// </summary>
+        public ControllerDescriptor ControllerDescriptor { get; set; }
+
+        /// <summary>
+        /// The action descriptor.
+        /// </summary>
+        public ActionDescriptor ActionDescriptor { get; set; }
+
+        /// <summary>
+        /// The route values without the controll and action entries.
+        /// </summary>
+        public RouteValueDictionary Values { get; set; }
+
+        /// <summary>
+        /// The protocol, can be null.
+        /// </summary>
+        public String Protocol { get; set; }
+
+        /// <summary>
+        /// The host name, can be null.
+        /// </summary>
+        public String HostName { get; set; }
+
+        public static implicit operator MvcActionExpression(ActionResult ar)
+        {
+            return ar.AsExpression();
+        }
+
+        public static implicit operator MvcActionExpression(Task<ActionResult> tar)
+        {
+            return tar.AsExpression();
+        }
+
+        /// <summary>
+        /// Retrieves the route values with the controller and action entries.
+        /// </summary>
+        /// <returns>The route values with the controller and action entries.</returns>
+        public RouteValueDictionary GetValuesWithControllerAndAction()
+        {
+            var values = new RouteValueDictionary(Values);
+            values["controller"] = ControllerName;
+            values["action"] = ActionName;
+            return values;
+        }
+
+        /// <summary>
+        /// Gets a URL corresponding to this expression. This function calls down to `Url.Action(...)`.
+        /// </summary>
+        /// <param name="url">The `UrlHelper` to use.</param>
+        /// <returns>The URL corresponding to the expression.</returns>
+        public String GetUrl(UrlHelper url)
+        {
+            var values = new RouteValueDictionary(Values);
+
+            foreach (var hook in SafeMvcUrlsHookRegistry.Hooks)
+            {
+                hook.OnBeforeUrlCreation(url, this, values);
+            }
+
+            var urlString = url.Action(ActionName, ControllerName, values, Protocol, HostName);
+
+            foreach (var hook in SafeMvcUrlsHookRegistry.Hooks)
+            {
+                hook.OnBeforeUrlDelivery(ref urlString);
+            }
+
+            return urlString;
+        }
+
+        public Boolean IsCurrent(RequestContext request)
+        {
+            if (!ControllerName.Equals(request.RouteData.Values["controller"])) return false;
+            if (!ActionName.Equals(request.RouteData.Values["action"])) return false;
+
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// The actual results from a call to `.To&ls;C>()` implement `IMvcActionExpressionProvider`. They
+    /// also override `Object.ToString()`, which is what gives the URL. A call to `Object.ToString()`
+    /// actually calls down to `IMvcActionExpressionProvider.GetExpression().GetUrl(urlHelper)`.
+    /// </summary>
+    public interface IMvcActionExpressionProvider
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        MvcActionExpression GetExpression();
+    }
+
+    class ActionResultExpressionProvider : ActionResult, IMvcActionExpressionProvider
+    {
+        public ActionResultExpressionProvider(MvcActionExpression expression, UrlHelper urlHelper = null)
+        {
+            this.expression = expression;
+            this.urlHelper = urlHelper;
+        }
+
+        public MvcActionExpression GetExpression()
+        {
+            return expression;
+        }
+
+        public String ToString(UrlHelper urlHelper)
+        {
+            return expression.GetUrl(urlHelper);
         }
 
         public override String ToString()
         {
-            return txt;
+            if (urlHelper == null) throw new InvalidOperationException("This ActionResult can't create a url without providing an UrlHelper explicitly.");
+
+            return expression.GetUrl(urlHelper);
         }
 
         public override void ExecuteResult(ControllerContext context)
@@ -29,20 +212,35 @@ namespace MonkeyBusters.Web.Mvc
             throw new NotImplementedException("This is a pseudo-result that isn't supposed to be executed.");
         }
 
-        String txt;
+        MvcActionExpression expression;
+
+        UrlHelper urlHelper;
     }
 
-    class StringifiableResultTask : Task<ActionResult>
+    class ActionResultTaskExpressionProvider : Task<ActionResult>, IMvcActionExpressionProvider
     {
-        public StringifiableResultTask(String txt)
+        public ActionResultTaskExpressionProvider(MvcActionExpression expression, UrlHelper urlHelper = null)
             : base(Impl)
         {
-            this.txt = txt;
+            this.expression = expression;
+            this.urlHelper = urlHelper;
+        }
+
+        public MvcActionExpression GetExpression()
+        {
+            return expression;
+        }
+
+        public String ToString(UrlHelper urlHelper)
+        {
+            return expression.GetUrl(urlHelper);
         }
 
         public override String ToString()
         {
-            return txt;
+            if (urlHelper == null) throw new InvalidOperationException("This ActionResult can't create a url without providing an UrlHelper explicitly.");
+
+            return expression.GetUrl(urlHelper);
         }
 
         static ActionResult Impl()
@@ -50,7 +248,9 @@ namespace MonkeyBusters.Web.Mvc
             throw new NotImplementedException("This is a pseudo-action that isn't supposed to be executed.");
         }
 
-        String txt;
+        MvcActionExpression expression;
+
+        UrlHelper urlHelper;
     }
 
     #endregion
@@ -177,7 +377,7 @@ namespace MonkeyBusters.Web.Mvc
 
     class AreaCache
     {
-		static Lazy<AreaCache> instance = new Lazy<AreaCache>(() => new AreaCache());
+        static Lazy<AreaCache> instance = new Lazy<AreaCache>(() => new AreaCache());
 
         private AreaCache() { }
 
@@ -278,17 +478,62 @@ namespace MonkeyBusters.Web.Mvc
 
     #endregion
 
+    #region Hooks
+
+    /// <summary>
+    /// A hook to various points of the SafeMvcUrls URL creation process.
+    /// </summary>
+    public abstract class AbstractSafeMvcUrlCreationHook
+    {
+        /// <summary>
+        /// Called before `SafeMvcUrls` populates the route values from the lambda expression. Values
+        /// put into the dictionary may get overridden by `SafeMvcUrls`.
+        /// </summary>
+        /// <param name="values">An empty route values dictionary to populate.</param>
+        public virtual void OnBeforeValuesFilled(RouteValueDictionary values) { }
+
+        /// <summary>
+        /// Called before a call to `MvcActionExpression.GetUrl(UrlHelper url)` to allow for the addition
+        /// of extra values that should only added on the actual string representation of URLs.
+        /// </summary>
+        /// <param name="url">The used url helper.</param>
+        /// <param name="expression">The action expression.</param>
+        /// <param name="values">The route values to tweak.</param>
+        public virtual void OnBeforeUrlCreation(UrlHelper url, MvcActionExpression expression, RouteValueDictionary values) { }
+
+        /// <summary>
+        /// Called before a call to `MvcActionExpression.GetUrl(UrlHelper url)` returns to deliver the actual URL to
+        /// allow for final tweaking.
+        /// </summary>
+        /// <param name="url">The url to tweak.</param>
+        public virtual void OnBeforeUrlDelivery(ref String url) { }
+    }
+
+    static class SafeMvcUrlsHookRegistry
+    {
+        internal static void AddHook(AbstractSafeMvcUrlCreationHook hook)
+        {
+            hooks.Add(hook);
+        }
+
+        internal static IEnumerable<AbstractSafeMvcUrlCreationHook> Hooks { get { return hooks; } }
+
+        static List<AbstractSafeMvcUrlCreationHook> hooks = new List<AbstractSafeMvcUrlCreationHook>();
+    }
+
+    #endregion
+
     #region The IInterceptor implementation doing the main work
 
     class ActionUrlCreatingInterceptor : IInterceptor
     {
-        public ActionUrlCreatingInterceptor(Type controllerType, UrlHelper urlHelper, RouteValueDictionary values = null, String protocol = null, String hostname = null)
+        public ActionUrlCreatingInterceptor(Type controllerType, UrlHelper urlHelper = null, RouteValueDictionary values = null, String protocol = null, String hostname = null)
         {
             this.controllerType = controllerType;
-            this.urlHelper = urlHelper;
             this.values = values;
             this.protocol = protocol;
             this.hostname = hostname;
+            this.urlHelper = urlHelper;
         }
 
         public void Intercept(IInvocation invocation)
@@ -302,7 +547,7 @@ namespace MonkeyBusters.Web.Mvc
 
             if (invocation.Method.GetCustomAttribute<NonActionAttribute>() != null)
             {
-                throw new Exception(String.Format("You called a controller method {0} that is marked as not being an action on the helper returned by one of the *To() overloads.", invocation.Method));
+                throw new Exception(String.Format("You called the controller method {0} that is marked as not being an action on the helper returned by one of the *To() overloads.", invocation.Method));
             }
 
             var descriptors = ControllerDescriptorCache.Create(controllerType);
@@ -312,7 +557,7 @@ namespace MonkeyBusters.Web.Mvc
             var actionDescriptor = controllerDescriptor.GetCanonicalActions()
                 .OfType<ReflectedActionDescriptor>().FirstOrDefault(ad => ad.MethodInfo == invocation.Method);
 
-            if (actionDescriptor == null) throw new Exception(String.Format("You called a controller method {0} which MVC thinks is not an action on the helper returned by one of the *To() overloads.", invocation.Method));
+            if (actionDescriptor == null) throw new Exception(String.Format("You called the controller method {0} which MVC thinks is not an action on the helper returned by one of the *To() overloads.", invocation.Method));
 
             var area = AreaCache.GetArea(controllerType);
 
@@ -324,6 +569,11 @@ namespace MonkeyBusters.Web.Mvc
             var controllerName = controllerDescriptor.ControllerName;
 
             var values = new RouteValueDictionary();
+
+            foreach (var hook in SafeMvcUrlsHookRegistry.Hooks)
+            {
+                hook.OnBeforeValuesFilled(values);
+            }
 
             if (this.values != null)
             {
@@ -345,22 +595,46 @@ namespace MonkeyBusters.Web.Mvc
                 var p = parameters[i];
                 var a = invocation.Arguments[i];
 
-                if (!p.IsOptional || !AreEqual(p.ParameterType, a, p.DefaultValue))
+                if (p.ParameterType.GetCustomAttribute<MvcParameterAggregateAttribute>(true) != null)
                 {
-                    values[parameters[i].Name] = invocation.Arguments[i];
+                    MvcAggregateHelper.AddValues(values, p.ParameterType, a);
+                }
+                else
+                {
+                    if (!p.IsOptional || !AreEqual(p.ParameterType, a, p.DefaultValue))
+                    {
+                        if (null != a)
+                        {
+                            values[parameters[i].Name] = Stringify(a);
+                        }
+                    }
                 }
             }
 
-            var url = urlHelper.Action(actionName, controllerName, values, protocol, hostname);
+            var expression = new MvcActionExpression()
+            {
+                ActionName = actionName,
+                ControllerName = controllerName,
+                ActionDescriptor = actionDescriptor,
+                ControllerDescriptor = controllerDescriptor,
+                HostName = hostname,
+                Protocol = protocol,
+                Values = values
+            };
 
             if (returnType.IsGenericType)
             {
-                invocation.ReturnValue = new StringifiableResultTask(url);
+                invocation.ReturnValue = new ActionResultTaskExpressionProvider(expression, urlHelper);
             }
             else
             {
-                invocation.ReturnValue = new StringifiableResult(url);
+                invocation.ReturnValue = new ActionResultExpressionProvider(expression, urlHelper);
             }
+        }
+
+        Object Stringify(Object o)
+        {
+            return o.ToString();
         }
 
         internal static Boolean IsAcceptableAsReturnType(Type type)
@@ -399,6 +673,21 @@ namespace MonkeyBusters.Web.Mvc
     /// </summary>
     public static class SafeMvcUrls
     {
+        /// <summary>
+        /// Returns a fake proxy controller the action methods of which, instead of their usual implementation,
+        /// return fake objects that return the url to that controller action when having ".ToString()" called on them.
+        /// </summary>
+        /// <typeparam name="C">The controller type an action of which you want to create a url to.</typeparam>
+        /// <param name="urlHelper">Can be retrieved from <c>Url</c> property on both the controller and the view classes.</param>
+        /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
+        /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
+        /// <returns>The fake proxy controller.</returns>
+        public static C To<C>(String protocol = null, String hostname = null)
+            where C : Controller
+        {
+            return generator.CreateClassProxy(typeof(C), new ActionUrlCreatingInterceptor(typeof(C), null, null, protocol, hostname)) as C;
+        }
+
         /// <summary>
         /// Returns a fake proxy controller the action methods of which, instead of their usual implementation,
         /// return fake objects that return the url to that controller action when having ".ToString()" called on them.
@@ -458,7 +747,72 @@ namespace MonkeyBusters.Web.Mvc
             return generator.CreateClassProxy(typeof(C), interceptor) as C;
         }
 
+        /// <summary>
+        /// Converts a set of route values to an object with the route value keys as properties.
+        /// </summary>
+        /// <param name="values">The route values to use.</param>
+        /// <returns>The object representing the route values.</returns>
+        public static Object ToObject(this RouteValueDictionary values)
+        {
+            var obj = new ExpandoObject();
+            var dict = obj as IDictionary<String, Object>;
+
+            foreach (var pair in values)
+            {
+                dict.Add(pair);
+            }
+            return obj;
+        }
+
+        /// <summary>
+        /// Gets an `MvcActionExpression` from the the result of a call to `Url.To&ls;C>()`.
+        /// </summary>
+        /// <param name="result">The `ActionResult` this method extends.</param>
+        /// <returns>The `MvcActionExpression` representing the URL.</returns>
+        public static MvcActionExpression AsExpression(this ActionResult result)
+        {
+            var expression = result as IMvcActionExpressionProvider;
+
+            if (expression == null) throw new Exception("This ActionResult is not an mvc action expression result. Are you sure it's been returned from an Url.To<C>() expression?");
+
+            return expression.GetExpression();
+        }
+
+        /// <summary>
+        /// Gets an `MvcActionExpression` from the the result of a call to `Url.To&ls;C>()`.
+        /// </summary>
+        /// <param name="result">The `Task&ls;ActionResult>` this method extends.</param>
+        /// <returns>The `MvcActionExpression` representing the URL.</returns>
+        public static MvcActionExpression AsExpression(this Task<ActionResult> result)
+        {
+            var expression = result as IMvcActionExpressionProvider;
+
+            if (expression == null) throw new Exception("This Task<ActionResult> is not a mvc action expression result. Are you sure it's been returned from an Url.To<C>() expression?");
+
+            return expression.GetExpression();
+        }
+
+        /// <summary>
+        /// Invokes the specified child action method using the specified parameters and
+        /// controller name and renders the result inline in the parent view.
+        /// </summary>
+        /// <param name="html">The HTML helper instance that this method extends.</param>
+        /// <param name="expression">The expression representing the action method to invoke.</param>
+        public static void RenderAction(this HtmlHelper html, MvcActionExpression expression)
+        {
+            html.RenderAction(expression.ActionName, expression.ControllerName, expression.Values);
+        }
+
         static readonly ProxyGenerator generator = new ProxyGenerator();
+
+        /// <summary>
+        /// Adds a new hook to tweak SafeMvcUrls' URL creation process.
+        /// </summary>
+        /// <param name="hook">The hook to add.</param>
+        public static void AddHook(AbstractSafeMvcUrlCreationHook hook)
+        {
+            SafeMvcUrlsHookRegistry.AddHook(hook);
+        }
     }
 
     #endregion
@@ -600,41 +954,41 @@ namespace MonkeyBusters.Web.Mvc
 
             void Test()
             {
-AssertEqual(Url.To<GoodController>().Trivial(), "/Good/Trivial");
+                AssertEqual(Url.To<GoodController>().Trivial(), "/Good/Trivial");
 
-AssertEqual(Url.To<GoodController>(protocol: "https").Trivial(), "https://www.example.com/Good/Trivial");
-AssertEqual(Url.To<GoodController>(hostname: "localhost").Trivial(), "http://localhost/Good/Trivial");
+                AssertEqual(Url.To<GoodController>(protocol: "https").Trivial(), "https://www.example.com/Good/Trivial");
+                AssertEqual(Url.To<GoodController>(hostname: "localhost").Trivial(), "http://localhost/Good/Trivial");
 
-AssertEqual(Url.To<GoodController>().Simple("foo"), "/Good/Simple?s=foo");
-AssertEqual(Url.To<GoodController>().Simple(42), "/Good/Simple?i=42");
-AssertEqual(Url.To<GoodController>().Simple(someGuid), "/Good/Simple?g=" + someGuid);
+                AssertEqual(Url.To<GoodController>().Simple("foo"), "/Good/Simple?s=foo");
+                AssertEqual(Url.To<GoodController>().Simple(42), "/Good/Simple?i=42");
+                AssertEqual(Url.To<GoodController>().Simple(someGuid), "/Good/Simple?g=" + someGuid);
 
-AssertEqual(Url.To<GoodController>().WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
-AssertEqual(Url.To<GoodController>().WithDefaultString("default"), "/Good/WithDefaultString");
-AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
+                AssertEqual(Url.To<GoodController>().WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
+                AssertEqual(Url.To<GoodController>().WithDefaultString("default"), "/Good/WithDefaultString");
+                AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
 
-AssertEqual(Url.To<GoodController>().WithDefaultInt32(42), "/Good/WithDefaultInt32?i=42");
-AssertEqual(Url.To<GoodController>().WithDefaultInt32(-1), "/Good/WithDefaultInt32");
-AssertEqual(Url.To<GoodController>().WithDefaultInt32(), "/Good/WithDefaultInt32");
+                AssertEqual(Url.To<GoodController>().WithDefaultInt32(42), "/Good/WithDefaultInt32?i=42");
+                AssertEqual(Url.To<GoodController>().WithDefaultInt32(-1), "/Good/WithDefaultInt32");
+                AssertEqual(Url.To<GoodController>().WithDefaultInt32(), "/Good/WithDefaultInt32");
 
-AssertEqual(Url.To<GoodController>().WithDefaultGuid(), "/Good/WithDefaultGuid");
-AssertEqual(Url.To<GoodController>().WithDefaultGuid(Guid.Empty), "/Good/WithDefaultGuid");
-AssertEqual(Url.To<GoodController>().WithDefaultGuid(someGuid), "/Good/WithDefaultGuid?g=" + someGuid);
+                AssertEqual(Url.To<GoodController>().WithDefaultGuid(), "/Good/WithDefaultGuid");
+                AssertEqual(Url.To<GoodController>().WithDefaultGuid(Guid.Empty), "/Good/WithDefaultGuid");
+                AssertEqual(Url.To<GoodController>().WithDefaultGuid(someGuid), "/Good/WithDefaultGuid?g=" + someGuid);
 
-AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
-AssertEqual(Url.To<GoodController>(new { x = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?x=bar&s=foo");
-AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
-AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString(), "/Good/WithDefaultString?s=bar");
-AssertEqual(Url.To<GoodController>(new { s = "default" }).WithDefaultString(), "/Good/WithDefaultString?s=default");
+                AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
+                AssertEqual(Url.To<GoodController>(new { x = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?x=bar&s=foo");
+                AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
+                AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString(), "/Good/WithDefaultString?s=bar");
+                AssertEqual(Url.To<GoodController>(new { s = "default" }).WithDefaultString(), "/Good/WithDefaultString?s=default");
 
-AssertEqual(Url.To<GoodController>().NamedParams(b: "x"), "/Good/NamedParams?b=x");
+                AssertEqual(Url.To<GoodController>().NamedParams(b: "x"), "/Good/NamedParams?b=x");
 
-AssertEqual(Url.To<GoodController>().ExplicitlyNamed(), "/Good/explicitly-named");
-AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
-AssertEqual(Url.To<GoodController>().Asyncy("foo"), "/Good/Asyncy?s=foo");
+                AssertEqual(Url.To<GoodController>().ExplicitlyNamed(), "/Good/explicitly-named");
+                AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
+                AssertEqual(Url.To<GoodController>().Asyncy("foo"), "/Good/Asyncy?s=foo");
 
-                // How do we test this?
-//AssertEqual(Url.To<InSpecialAreaController>().Index(), "/SpecialAreaName/InSpecialArea");
+                // TODO: Make this work:
+                // AssertEqual(Url.To<InSpecialAreaController>().Index(), "/SpecialAreaName/InSpecialArea");
 
                 try
                 {
