@@ -331,12 +331,12 @@ namespace MonkeyBusters.Web.Mvc
 
             if (!ActionUrlCreatingInterceptor.IsAcceptableAsReturnType(info.ReturnType))
             {
-                yield return new ControllerProblem(info, "Method has neither ActionResult nor Task<ActionResult> as a return type and will not be overriden in a fake proxy.");
+                yield return new ControllerProblem(info, "Any controller you want to use one of the .To<> overloads of SafeMvcUrls on needs to have all their actions return either ActionResult or Task<ActionResult>.");
             }
 
             if (!info.IsVirtual)
             {
-                yield return new ControllerProblem(info, "The action method is not marked as virtual an can not be overridden in a fake proxy.");
+                yield return new ControllerProblem(info, "Any controller you want to use one of the .To<> overloads of SafeMvcUrls on needs to have all their actions marked as virtual.");
             }
         }
     }
@@ -819,40 +819,43 @@ namespace MonkeyBusters.Web.Mvc
 
     #region Tests
 
-    namespace Tests
-    {
-        namespace SpecialArea
-        {
-            namespace Controllers
-            {
-                public class InSpecialAreaController : Controller
-                {
-                    public virtual ActionResult Index() { return View(); }
-                }
-            }
+    // Testing areas is more difficult, as the routing seems to be picked up
+    // through area registrations. We also don't want to have an area definition
+    // in the assembly, as the proper AreaRegistration.RegisterAllAreas would
+    // pick it up. The area code generally appears to work though.
+    //
+    //namespace Tests
+    //{
+    //    namespace SpecialArea
+    //    {
+    //        namespace Controllers
+    //        {
+    //            public class InSpecialAreaController : Controller
+    //            {
+    //                public virtual ActionResult Index() { return View(); }
+    //            }
+    //        }
 
-            public class SomeAreaRegistration : AreaRegistration
-            {
-                public override string AreaName { get { return "SpecialAreaName"; } }
+    //        public class SomeAreaRegistration : AreaRegistration
+    //        {
+    //            public override string AreaName { get { return "SpecialAreaName"; } }
 
-                public override void RegisterArea(AreaRegistrationContext context)
-                {
-                    context.MapRoute(
-                        "MyArea_default",
-                        "MyArea2/{controller}/{action}/{id}",
-                        new { action = "Index", id = UrlParameter.Optional }
-                    );
-                }
-            }
-        }
+    //            public override void RegisterArea(AreaRegistrationContext context)
+    //            {
+    //                context.MapRoute(
+    //                    "MyArea_default",
+    //                    "MyArea2/{controller}/{action}/{id}",
+    //                    new { action = "Index", id = UrlParameter.Optional }
+    //                );
+    //            }
+    //        }
+    //    }
+    //}
 
-    }
     namespace Tests
     {
         using System.Web;
         using NameValueCollection = System.Collections.Specialized.NameValueCollection;
-        using InSpecialAreaController = SpecialArea.Controllers.InSpecialAreaController;
-
         public class GoodController : Controller
         {
             public virtual ActionResult Trivial() { return View(); }
@@ -949,6 +952,7 @@ namespace MonkeyBusters.Web.Mvc
                     url: "{controller}/{action}"
                 );
 
+
                 url = new UrlHelper(new RequestContext(new MockContext(), new RouteData()), routes);
             }
 
@@ -987,8 +991,8 @@ namespace MonkeyBusters.Web.Mvc
                 AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
                 AssertEqual(Url.To<GoodController>().Asyncy("foo"), "/Good/Asyncy?s=foo");
 
-                // TODO: Make this work:
-                // AssertEqual(Url.To<InSpecialAreaController>().Index(), "/SpecialAreaName/InSpecialArea");
+                // TODO: Test areas.
+                //AssertEqual(Url.To<InSpecialAreaController>().Index(), "/SpecialAreaName/InSpecialArea");
 
                 try
                 {
