@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
   <metadata>
-    <id>MonkeyBusters.Web.Mvc.SafeUrls</id>
-    <version>1.1.2-alpha</version>
+    <id>IronStone.Web.Mvc.SafeUrls</id>
+    <version>1.2.0</version>
     <title>SafeMvcUrls</title>
     <dependencies>
       <dependency id="Castle.Core" version="3.1.0" />
@@ -16,7 +16,7 @@
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <summary>Type- and name-safe urls with ASP.NET MVC.</summary>
 	<description>Use "@(Url.To&lt;MyController>().MyAction(someparam: "somevalue"))" to create your urls in a type- and name-safe manner - both in views and controllers. See the project site for a quick introduction.</description>
-    <copyright>Copyright 2014 MonkeyBusters</copyright>
-    <tags>monkeybusters safemvcurls safemvc safeurls urls mvc</tags>
+    <copyright>Copyright 2014 Jens Theisen</copyright>
+    <tags>ironstone safemvcurls safemvc safeurls urls mvc</tags>
   </metadata>
 </package>

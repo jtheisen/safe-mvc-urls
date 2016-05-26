@@ -10,7 +10,7 @@ namespace SafeMvcUrls.TestRunner
     {
         static void Main(string[] args)
         {
-            MonkeyBusters.Web.Mvc.Tests.Tests.RunTests();
+            IronStone.Web.Mvc.Tests.Tests.RunTests();
 
             Console.WriteLine("All fine.");
 

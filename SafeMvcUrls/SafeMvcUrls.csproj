@@ -7,8 +7,8 @@
     <ProjectGuid>{E46A753A-1E7A-4719-88B9-46F8E14D625B}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>MonkeyBusters.Web.Mvc</RootNamespace>
-    <AssemblyName>MonkeyBusters.Web.Mvc.SafeUrls</AssemblyName>
+    <RootNamespace>IronStone.Web.Mvc</RootNamespace>
+    <AssemblyName>IronStone.Web.Mvc.SafeUrls</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />

@@ -35,7 +35,7 @@ and get what you expect as the url:
 # How do I get started?
 
 - Install the [NuGet package](https://www.nuget.org/packages/MonkeBusters.Web.Mvc.SafeUrls).
-- Add the `MonkeyBusters.Web.Mvc` namespace to your Web.Config for your views along with those you already have. You can alternatively use a `using` statement in your view. It will then look something like this:
+- Add the `IronStone.Web.Mvc` namespace to your Web.Config for your views along with those you already have. You can alternatively use a `using` statement in your view. It will then look something like this:
 ```
   <system.web.webPages.razor>
     <pages pageBaseType="System.Web.Mvc.WebViewPage">
@@ -44,22 +44,22 @@ and get what you expect as the url:
         <add namespace="System.Web.Mvc.Ajax" />
         <add namespace="System.Web.Mvc.Html" />
         <add namespace="System.Web.Routing" />
-        <add namespace="MonkeyBusters.Web.Mvc"/>
+        <add namespace="IronStone.Web.Mvc"/>
         ...
 ```
-- Add the `MonkeyBusters.Web.Mvc.SafeUrls` assembly to your Web.Config in the `compilation` section. It will then look something like this:
+- Add the `IronStone.Web.Mvc.SafeUrls` assembly to your Web.Config in the `compilation` section. It will then look something like this:
 ```
   <system.web>
     <compilation debug="true" targetFramework="4.5">
       <assemblies>
-        <add assembly="MonkeyBusters.Web.Mvc.SafeUrls" />
+        <add assembly="IronStone.Web.Mvc.SafeUrls" />
       </assemblies>
     </compilation>
     <httpRuntime targetFramework="4.5" />
   </system.web>
 ```
   I always have to restart Visual Studio before Intellisense starts working in my views after doing this.
-- Add a `using MonkeyBusters.Web.Mvc` declaration to all controller source files in which you want to have the overload set.
+- Add a `using IronStone.Web.Mvc` declaration to all controller source files in which you want to have the overload set.
 - You may have to slightly change the action signatures, see the next section for details.
 - Have fun.
 
