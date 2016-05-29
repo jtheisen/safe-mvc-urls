@@ -10,10 +10,139 @@ using System.Web.Mvc;
 using System.Web.Mvc.Html;
 using System.Web.Routing;
 
+#region The controller nanny
+
+namespace IronStone.Web.Mvc.SafeMvcUrls
+{
+    /// <summary>
+    /// Represents a problem with a controller.
+    /// </summary>
+    public class ControllerProblem
+    {
+        internal ControllerProblem(MethodInfo methodInfo, String message)
+        {
+            MethodInfo = methodInfo;
+            Message = message;
+        }
+
+        /// <summary>
+        /// Returns a <see cref="System.String" /> that represents this instance.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="System.String" /> that represents this instance.
+        /// </returns>
+        public override string ToString()
+        {
+            return String.Format("About {0}.{1}: {2}", MethodInfo.DeclaringType.Name, MethodInfo.Name, Message);
+        }
+
+        /// <summary>
+        /// Gets the method information for the problematic method.
+        /// </summary>
+        /// <value>
+        /// The method information.
+        /// </value>
+        public MethodInfo MethodInfo { get; private set; }
+
+        /// <summary>
+        /// Gets a message explaining the problem.
+        /// </summary>
+        /// <value>
+        /// The message.
+        /// </value>
+        public String Message { get; private set; }
+    }
+
+    /// <summary>
+    /// An exception representing one or more problems with controllers.
+    /// </summary>
+    /// <seealso cref="System.Exception" />
+    public class ControllerProblemsException : Exception
+    {
+        internal ControllerProblemsException(ControllerProblem[] problems)
+            : base("There are problems with your controllers:\n" + GetReport(problems))
+        {
+            this.problems = problems;
+        }
+
+        static String GetReport(ControllerProblem[] problems)
+        {
+            return String.Join("\n", problems.Select(p => p.ToString()));
+        }
+
+        /// <summary>
+        /// The problems found with controllers.
+        /// </summary>
+        /// <value>
+        /// The problems.
+        /// </value>
+        public ControllerProblem[] Problems { get { return problems; } }
+
+        ControllerProblem[] problems;
+    }
+
+    static class ControllerNanny
+    {
+        static readonly Type[] IgnoredDelcaringTypes = new[] { typeof(Object), typeof(ControllerBase), typeof(Controller), typeof(AsyncController) };
+
+        internal static void Assert(Type type)
+        {
+            var problems = Check(type).ToArray();
+
+            if (problems.Length > 0)
+            {
+                throw new ControllerProblemsException(problems);
+            }
+        }
+
+        internal static IEnumerable<ControllerProblem> Check(Type type)
+        {
+            var descriptor = ControllerDescriptorCache.Create(type);
+
+            var actionDescriptors = descriptor.GetActionDescriptors();
+
+            return
+                from ad in actionDescriptors.OfType<ReflectedActionDescriptor>()
+                from p in Check(ad.MethodInfo)
+                select p;
+        }
+
+        static IEnumerable<ControllerProblem> Check(MethodInfo info)
+        {
+            // We're a bit lenient on void return values as presumably the user will figure out on his own that he can't
+            // convert the result value into a string: Both in the view and in controller contexts it will give compile
+            // time errors on standard usage.
+            if (info.ReturnType == typeof(void)) yield break;
+
+            // One would think that methods marked as not an actions are not returned by the
+            // ReflectedControllerDescriptor anyway. Alas, they are...
+            if (info.GetCustomAttribute<NonActionAttribute>() != null) yield break;
+
+            if (!ActionUrlCreatingInterceptor.IsAcceptableAsReturnType(info.ReturnType))
+            {
+                yield return new ControllerProblem(info, "Any controller you want to use one of the .To<> overloads of SafeMvcUrls on needs to have all their actions return either ActionResult or Task<ActionResult>.");
+            }
+
+            if (!info.IsVirtual)
+            {
+                yield return new ControllerProblem(info, "Any controller you want to use one of the .To<> overloads of SafeMvcUrls on needs to have all their actions marked as virtual.");
+            }
+        }
+    }
+}
+
+#endregion
+
 namespace IronStone.Web.Mvc
 {
+    using SafeMvcUrls;
+
     #region Aggregates
 
+    /// <summary>
+    /// Makes this class be unbundled on use as arguments to the .To&lt;C> overloads.
+    /// </summary>
+    /// <seealso cref="System.Attribute" />
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
     public class MvcParameterAggregateAttribute : Attribute
     {
@@ -113,11 +242,25 @@ namespace IronStone.Web.Mvc
         /// </summary>
         public String HostName { get; set; }
 
+        /// <summary>
+        /// Performs an implicit conversion from <see cref="ActionResult"/> to <see cref="MvcActionExpression"/>.
+        /// </summary>
+        /// <param name="ar">The value returned from a .To&lt;C> helper.</param>
+        /// <returns>
+        /// The action expression.
+        /// </returns>
         public static implicit operator MvcActionExpression(ActionResult ar)
         {
             return ar.AsExpression();
         }
 
+        /// <summary>
+        /// Performs an implicit conversion from <see cref="Task{ActionResult}"/> to <see cref="MvcActionExpression"/>.
+        /// </summary>
+        /// <param name="tar">The value returned from a .To&lt;C> helper.</param>
+        /// <returns>
+        /// The action expression.
+        /// </returns>
         public static implicit operator MvcActionExpression(Task<ActionResult> tar)
         {
             return tar.AsExpression();
@@ -159,6 +302,12 @@ namespace IronStone.Web.Mvc
             return urlString;
         }
 
+        /// <summary>
+        /// Determines whether the expression matches the current request in terms of
+        /// controller and action.
+        /// </summary>
+        /// <param name="request">The current request.</param>
+        /// <returns>True, if the expression matches the current request.</returns>
         public Boolean IsCurrent(RequestContext request)
         {
             if (!ControllerName.Equals(request.RouteData.Values["controller"])) return false;
@@ -169,7 +318,7 @@ namespace IronStone.Web.Mvc
     }
 
     /// <summary>
-    /// The actual results from a call to `.To&ls;C>()` implement `IMvcActionExpressionProvider`. They
+    /// The actual results from a call to `.To&lt;C>()` implement `IMvcActionExpressionProvider`. They
     /// also override `Object.ToString()`, which is what gives the URL. A call to `Object.ToString()`
     /// actually calls down to `IMvcActionExpressionProvider.GetExpression().GetUrl(urlHelper)`.
     /// </summary>
@@ -251,94 +400,6 @@ namespace IronStone.Web.Mvc
         MvcActionExpression expression;
 
         UrlHelper urlHelper;
-    }
-
-    #endregion
-
-    #region The controller nanny
-
-    public class ControllerProblem
-    {
-        public ControllerProblem(MethodInfo methodInfo, String message)
-        {
-            MethodInfo = methodInfo;
-            Message = message;
-        }
-
-        public override string ToString()
-        {
-            return String.Format("About {0}.{1}: {2}", MethodInfo.DeclaringType.Name, MethodInfo.Name, Message);
-        }
-
-        public MethodInfo MethodInfo { get; private set; }
-        public String Message { get; private set; }
-    }
-
-    public class ControllerProblemsException : Exception
-    {
-        public ControllerProblemsException(ControllerProblem[] problems)
-            : base("There are problems with your controllers:\n" + GetReport(problems))
-        {
-            this.problems = problems;
-        }
-
-        static String GetReport(ControllerProblem[] problems)
-        {
-            return String.Join("\n", problems.Select(p => p.ToString()));
-        }
-
-        public ControllerProblem[] Problems { get { return problems; } }
-
-        ControllerProblem[] problems;
-    }
-
-    static class ControllerNanny
-    {
-        static readonly Type[] IgnoredDelcaringTypes = new[] { typeof(Object), typeof(ControllerBase), typeof(Controller), typeof(AsyncController) };
-
-        internal static void Assert(Type type)
-        {
-            var problems = Check(type).ToArray();
-
-            if (problems.Length > 0)
-            {
-                throw new ControllerProblemsException(problems);
-            }
-        }
-
-        internal static IEnumerable<ControllerProblem> Check(Type type)
-        {
-            var descriptor = ControllerDescriptorCache.Create(type);
-
-            var actionDescriptors = descriptor.GetActionDescriptors();
-
-            return
-                from ad in actionDescriptors.OfType<ReflectedActionDescriptor>()
-                from p in Check(ad.MethodInfo)
-                select p;
-        }
-
-        static IEnumerable<ControllerProblem> Check(MethodInfo info)
-        {
-            // We're a bit lenient on void return values as presumably the user will figure out on his own that he can't
-            // convert the result value into a string: Both in the view and in controller contexts it will give compile
-            // time errors on standard usage.
-            if (info.ReturnType == typeof(void)) yield break;
-
-            // One would think that methods marked as not an actions are not returned by the
-            // ReflectedControllerDescriptor anyway. Alas, they are...
-            if (info.GetCustomAttribute<NonActionAttribute>() != null) yield break;
-
-            if (!ActionUrlCreatingInterceptor.IsAcceptableAsReturnType(info.ReturnType))
-            {
-                yield return new ControllerProblem(info, "Any controller you want to use one of the .To<> overloads of SafeMvcUrls on needs to have all their actions return either ActionResult or Task<ActionResult>.");
-            }
-
-            if (!info.IsVirtual)
-            {
-                yield return new ControllerProblem(info, "Any controller you want to use one of the .To<> overloads of SafeMvcUrls on needs to have all their actions marked as virtual.");
-            }
-        }
     }
 
     #endregion
@@ -671,14 +732,13 @@ namespace IronStone.Web.Mvc
     /// <summary>
     /// Extensions for the creation of urls to actions in a name- and type-safe manner.
     /// </summary>
-    public static class SafeMvcUrls
+    public static class SafeMvcUrlsExtensions
     {
         /// <summary>
         /// Returns a fake proxy controller the action methods of which, instead of their usual implementation,
         /// return fake objects that return the url to that controller action when having ".ToString()" called on them.
         /// </summary>
         /// <typeparam name="C">The controller type an action of which you want to create a url to.</typeparam>
-        /// <param name="urlHelper">Can be retrieved from <c>Url</c> property on both the controller and the view classes.</param>
         /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
         /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
         /// <returns>The fake proxy controller.</returns>
@@ -765,7 +825,7 @@ namespace IronStone.Web.Mvc
         }
 
         /// <summary>
-        /// Gets an `MvcActionExpression` from the the result of a call to `Url.To&ls;C>()`.
+        /// Gets an `MvcActionExpression` from the the result of a call to `Url.To&lt;C>()`.
         /// </summary>
         /// <param name="result">The `ActionResult` this method extends.</param>
         /// <returns>The `MvcActionExpression` representing the URL.</returns>
@@ -779,9 +839,9 @@ namespace IronStone.Web.Mvc
         }
 
         /// <summary>
-        /// Gets an `MvcActionExpression` from the the result of a call to `Url.To&ls;C>()`.
+        /// Gets an `MvcActionExpression` from the the result of a call to `Url.To&lt;C>()`.
         /// </summary>
-        /// <param name="result">The `Task&ls;ActionResult>` this method extends.</param>
+        /// <param name="result">The `Task&lt;ActionResult>` this method extends.</param>
         /// <returns>The `MvcActionExpression` representing the URL.</returns>
         public static MvcActionExpression AsExpression(this Task<ActionResult> result)
         {
@@ -856,6 +916,7 @@ namespace IronStone.Web.Mvc
     {
         using System.Web;
         using NameValueCollection = System.Collections.Specialized.NameValueCollection;
+
         public class GoodController : Controller
         {
             public virtual ActionResult Trivial() { return View(); }
@@ -935,15 +996,21 @@ namespace IronStone.Web.Mvc
             MockResponse response = new MockResponse();
         }
 
+        /// <summary>
+        /// A unit test suite for SafeMvcUrls
+        /// </summary>
         public class Tests
         {
+            /// <summary>
+            /// Runs the tests.
+            /// </summary>
             public static void RunTests()
             {
                 var tests = new Tests();
                 tests.Test();
             }
 
-            public Tests()
+            Tests()
             {
                 var routes = new RouteCollection();
 
