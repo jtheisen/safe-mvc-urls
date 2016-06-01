@@ -34,7 +34,7 @@ and get what you expect as the url:
 
 # How do I get started?
 
-- Install the [NuGet package](https://www.nuget.org/packages/MonkeBusters.Web.Mvc.SafeUrls).
+- Install the [NuGet package](https://www.nuget.org/packages/IronStone.Web.Mvc.SafeUrls).
 - Add the `IronStone.Web.Mvc` namespace to your Web.Config for your views along with those you already have. You can alternatively use a `using` statement in your view. It will then look something like this:
 ```
   <system.web.webPages.razor>
