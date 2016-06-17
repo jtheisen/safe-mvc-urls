@@ -3,6 +3,8 @@ SafeMvcUrls
 
 Type- and name-safe urls with ASP.NET MVC.
 
+Appveyor build status: ![build-status](https://ci.appveyor.com/api/projects/status/8jwforcs6u0gaw2d?svg=true)
+
 # What is the syntax?
 
 For a controller action defined as
