@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30723.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafeMvcUrls", "SafeMvcUrls\SafeMvcUrls.csproj", "{E46A753A-1E7A-4719-88B9-46F8E14D625B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafeMvcUrls.TestRunner", "SafeMvcUrls.TestRunner\SafeMvcUrls.TestRunner.csproj", "{9D1CE905-E600-4B18-BB87-1EC03416A452}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafeMvcUrls.UnitTests", "SafeMvcUrls.UnitTests\SafeMvcUrls.UnitTests.csproj", "{6791D135-94F5-4F3D-8465-2CE9A2849EB3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{E46A753A-1E7A-4719-88B9-46F8E14D625B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E46A753A-1E7A-4719-88B9-46F8E14D625B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E46A753A-1E7A-4719-88B9-46F8E14D625B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9D1CE905-E600-4B18-BB87-1EC03416A452}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9D1CE905-E600-4B18-BB87-1EC03416A452}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9D1CE905-E600-4B18-BB87-1EC03416A452}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9D1CE905-E600-4B18-BB87-1EC03416A452}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6791D135-94F5-4F3D-8465-2CE9A2849EB3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6791D135-94F5-4F3D-8465-2CE9A2849EB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6791D135-94F5-4F3D-8465-2CE9A2849EB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6791D135-94F5-4F3D-8465-2CE9A2849EB3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
