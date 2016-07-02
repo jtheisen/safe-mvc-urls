@@ -1,0 +1,35 @@
+environment:
+  version: 1.3.0
+  versionSuffix:
+
+init:
+- ps: $env:buildVersion = "$env:version$env:versionSuffix.$env:appveyor_build_number"
+- ps: $env:nugetVersion = "$env:version$env:versionSuffix"
+- ps: Update-AppveyorBuild -Version $env:buildVersion
+
+assembly_info:
+  patch: true
+  file: '**\AssemblyInfo.*'
+  assembly_version: '$(version)'
+  assembly_file_version: '$(version)'
+  assembly_informational_version: '$(nugetVersion)'
+
+configuration: Debug
+
+nuget:
+  account_feed: true
+  project_feed: true
+  disable_publish_on_pr: true
+
+before_build:
+- nuget restore
+
+build:
+  verbosity: minimal
+
+after_build:
+- ps: nuget pack SafeMvcUrls\SafeMvcUrls.nuspec -version "$env:nugetVersion"
+
+artifacts:
+- path: '*.nupkg'
+  name: nuget-package
