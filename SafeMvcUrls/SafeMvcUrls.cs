@@ -616,7 +616,7 @@ namespace IronStone.Web.Mvc
             var controllerDescriptor = descriptors.GetControllerDescriptor();
 
             var actionDescriptor = controllerDescriptor.GetCanonicalActions()
-                .OfType<ReflectedActionDescriptor>().FirstOrDefault(ad => ad.MethodInfo == invocation.Method);
+                .OfType<ReflectedActionDescriptor>().FirstOrDefault(ad => AreMethodsEqualForDeclaringType(ad.MethodInfo, invocation.Method));
 
             if (actionDescriptor == null) throw new Exception(String.Format("You called the controller method {0} which MVC thinks is not an action on the helper returned by one of the *To() overloads.", invocation.Method));
 
@@ -693,7 +693,14 @@ namespace IronStone.Web.Mvc
             }
         }
 
-        Object Stringify(Object o)
+        static Boolean AreMethodsEqualForDeclaringType(MethodInfo first, MethodInfo second)
+        {
+            first = first.ReflectedType == first.DeclaringType ? first : first.DeclaringType.GetMethod(first.Name, first.GetParameters().Select(p => p.ParameterType).ToArray());
+            second = second.ReflectedType == second.DeclaringType ? second : second.DeclaringType.GetMethod(second.Name, second.GetParameters().Select(p => p.ParameterType).ToArray());
+            return first == second;
+        }
+
+        static Object Stringify(Object o)
         {
             return o.ToString();
         }
@@ -958,6 +965,11 @@ namespace IronStone.Web.Mvc
             protected virtual ViewResult ProtectedViewResult() { return View(); }
         }
 
+        public class DerivedController : GoodController
+        {
+            public virtual ActionResult AnotherTrivial() { return View(); }
+        }
+
         public class BadController : Controller
         {
             public ActionResult NonVirtual() { return View(); }
@@ -1057,6 +1069,9 @@ namespace IronStone.Web.Mvc
                 AssertEqual(Url.To<GoodController>().ExplicitlyNamed(), "/Good/explicitly-named");
                 AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
                 AssertEqual(Url.To<GoodController>().Asyncy("foo"), "/Good/Asyncy?s=foo");
+
+                AssertEqual(Url.To<DerivedController>().Trivial(), "/Derived/Trivial");
+                AssertEqual(Url.To<DerivedController>().AnotherTrivial(), "/Derived/AnotherTrivial");
 
                 // TODO: Test areas.
                 //AssertEqual(Url.To<InSpecialAreaController>().Index(), "/SpecialAreaName/InSpecialArea");
