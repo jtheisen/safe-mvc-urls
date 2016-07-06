@@ -1,5 +1,5 @@
 environment:
-  version: 1.4.0
+  version: 1.4.1
   versionSuffix:
 
 init:
@@ -28,7 +28,7 @@ build:
   verbosity: minimal
 
 after_build:
-- ps: nuget pack SafeMvcUrls\SafeMvcUrls.nuspec -version "$env:nugetVersion"
+- ps: nuget pack SafeMvcUrls\SafeMvcUrls.csproj -version "$env:nugetVersion"
 
 artifacts:
 - path: '*.nupkg'
