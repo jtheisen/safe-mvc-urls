@@ -118,6 +118,8 @@ namespace IronStone.Web.Mvc.SafeMvcUrls
             // ReflectedControllerDescriptor anyway. Alas, they are...
             if (info.GetCustomAttribute<NonActionAttribute>() != null) yield break;
 
+            if (info.GetCustomAttribute<NoSafeMvcUrlsAttribute>() != null) yield break;
+
             if (!ActionUrlCreatingInterceptor.IsAcceptableAsReturnType(info.ReturnType))
             {
                 yield return new ControllerProblem(info, "Any controller you want to use one of the .To<> overloads of SafeMvcUrls on needs to have all their actions return either ActionResult or Task<ActionResult>.");
@@ -136,6 +138,24 @@ namespace IronStone.Web.Mvc.SafeMvcUrls
 namespace IronStone.Web.Mvc
 {
     using SafeMvcUrls;
+
+    /// <summary>
+    /// All controller implementations made by the .To&lt;C> overloads
+    /// implement this interface.
+    /// </summary>
+    public interface ISafeMvcUrlsControllerImplementation
+    {
+    }
+
+    /// <summary>
+    /// Make the controller nanny ignore the annotated action and no safe urls can
+    /// be created to it.
+    /// </summary>
+    /// <seealso cref="System.Attribute" />
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+    public class NoSafeMvcUrlsAttribute : Attribute
+    {
+    }
 
     #region Aggregates
 
@@ -601,14 +621,19 @@ namespace IronStone.Web.Mvc
         {
             var returnType = invocation.Method.ReturnType;
 
-            if (!IsAcceptableAsReturnType(returnType))
-            {
-                throw new Exception(String.Format("You called the controller method {0} that doesn't return an ActionResult on the helper returned by one of the *To() overloads.", invocation.Method));
-            }
-
             if (invocation.Method.GetCustomAttribute<NonActionAttribute>() != null)
             {
                 throw new Exception(String.Format("You called the controller method {0} that is marked as not being an action on the helper returned by one of the *To() overloads.", invocation.Method));
+            }
+
+            if (invocation.Method.GetCustomAttribute<NoSafeMvcUrlsAttribute>() != null)
+            {
+                throw new Exception(String.Format("You called the controller method {0} that is marked as not being no eligible for safe mvc urls on the helper returned by one of the *To() overloads.", invocation.Method));
+            }
+
+            if (!IsAcceptableAsReturnType(returnType))
+            {
+                throw new Exception(String.Format("You called the controller method {0} that doesn't return an ActionResult on the helper returned by one of the *To() overloads.", invocation.Method));
             }
 
             var descriptors = ControllerDescriptorCache.Create(controllerType);
@@ -752,7 +777,7 @@ namespace IronStone.Web.Mvc
         public static C To<C>(String protocol = null, String hostname = null)
             where C : Controller
         {
-            return generator.CreateClassProxy(typeof(C), new ActionUrlCreatingInterceptor(typeof(C), null, null, protocol, hostname)) as C;
+            return CreateProxy<C>(null, null, protocol, hostname);
         }
 
         /// <summary>
@@ -769,7 +794,7 @@ namespace IronStone.Web.Mvc
         {
             ControllerNanny.Assert(typeof(C));
 
-            return generator.CreateClassProxy(typeof(C), new ActionUrlCreatingInterceptor(typeof(C), urlHelper, null, protocol, hostname)) as C;
+            return CreateProxy<C>(urlHelper, null, protocol, hostname);
         }
 
         /// <summary>
@@ -789,7 +814,7 @@ namespace IronStone.Web.Mvc
 
             var interceptor = new ActionUrlCreatingInterceptor(typeof(C), urlHelper, routeValues, protocol, hostname);
 
-            return generator.CreateClassProxy(typeof(C), interceptor) as C;
+            return CreateProxy<C>(urlHelper, routeValues, protocol, hostname);
         }
 
         /// <summary>
@@ -811,7 +836,7 @@ namespace IronStone.Web.Mvc
 
             var interceptor = new ActionUrlCreatingInterceptor(typeof(C), urlHelper, dict, protocol, hostname);
 
-            return generator.CreateClassProxy(typeof(C), interceptor) as C;
+            return CreateProxy<C>(urlHelper, dict, protocol, hostname);
         }
 
         /// <summary>
@@ -869,6 +894,33 @@ namespace IronStone.Web.Mvc
         {
             html.RenderAction(expression.ActionName, expression.ControllerName, expression.Values);
         }
+
+        static C CreateProxy<C>(UrlHelper urlHelper, RouteValueDictionary routeValues, String protocol, String hostname)
+            where C : Controller
+        {
+            try
+            {
+                areInControllerCreation = true;
+
+                return generator.CreateClassProxy(typeof(C), interfaces, new ActionUrlCreatingInterceptor(typeof(C), urlHelper, routeValues, protocol, hostname)) as C;
+            }
+            finally
+            {
+                areInControllerCreation = false;
+            }
+        }
+
+        [ThreadStatic]
+        static Boolean areInControllerCreation = false;
+
+        /// <summary>
+        /// Gets a value indicating whether we are currently in the process of constructing
+        /// a fake proxy controller. This can be used in the constructors of such controllers
+        /// to bail out in such situtations and skip any setup code.
+        /// </summary>
+        static public Boolean AreInControllerCreation { get { return areInControllerCreation; } }
+
+        static readonly Type[] interfaces = new Type[] { typeof(ISafeMvcUrlsControllerImplementation) };
 
         static readonly ProxyGenerator generator = new ProxyGenerator();
 
@@ -957,6 +1009,9 @@ namespace IronStone.Web.Mvc
             // The nanny will allow non-virtual non-actions.
             [NonAction]
             public ActionResult NoAction() { return View(); }
+
+            [NoSafeMvcUrls]
+            public virtual String ExcentricAction() { return "Hello, World!"; }
 
             // The nanny will allow void results.
             public virtual void VoidResult() { }
@@ -1072,6 +1127,7 @@ namespace IronStone.Web.Mvc
 
                 AssertEqual(Url.To<DerivedController>().Trivial(), "/Derived/Trivial");
                 AssertEqual(Url.To<DerivedController>().AnotherTrivial(), "/Derived/AnotherTrivial");
+
 
                 // TODO: Test areas.
                 //AssertEqual(Url.To<InSpecialAreaController>().Index(), "/SpecialAreaName/InSpecialArea");

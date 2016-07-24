@@ -65,15 +65,23 @@ and get what you expect as the url:
 - You may have to slightly change the action signatures, see the next section for details.
 - Have fun.
 
-# What else should I know?
+# How does it work?
 
-The helper works by subclassing and overriding your controllers. That requires your controllers to allow that: They mustn't be final, all actions must be virtual and all return values must be one of the two that SafeMvcUrls can deal with: Either `ActionResult` or `Task<ActionResult>`.
+The helper works by subclassing controllers into fake proxies and overriding the actions. That requires your controllers to allow that: They mustn't be final, all actions must be virtual and all return values must be one of the two that SafeMvcUrls can deal with: Either `ActionResult` or `Task<ActionResult>`.
 
 If you use the `.To<C>()` extension method on a controller that doesn't match these requirements, in most cases you will get an exception at this point for your own safety: We don't want that you actually call your actions where you merely wanted an url.
+
+If you want to use the helper on some actions of a controller that has other actions not meeting the requirements, you can annotate them with the `NoSafeMvcUrlsAttribute` attribute to have the controller nanny ignore those. Obviously they still won't give you a url to themselves but rather throw when they're virtual or just execute as defined when not virtual. 
+
+If you need to suppress some initialization logic in the contructor of a controller in the context of constructing a fake proxy, you can do this by checking the `SafeMvcUrlsExtensions.AreInControllerCreation` boolean. This is necessary especially in those cases where the initialization code calls virtual methods of the current controller in the constructor.
 
 For more details just look at the tests at the end of [`SafeMvcUrls.cs`](https://github.com/jtheisen/safe-mvc-urls/blob/master/SafeMvcUrls/SafeMvcUrls.cs).
 
 By the way: This file is the whole implementation; which means that instead of using the NuGet package you can also just include the file in your project. Just make sure that [Castle.Core](http://www.nuget.org/packages/Castle.Core) is also there.
+
+# What else should I know?
+
+There is an attribute `MvcParameterAggregateAttribute` to make a custom type unbind on url creation - it will simply stringify each public property and apply them to the url individually, which works for the basic types. It won't work types that use custom binding though.
 
 # How does it compare to T4MVC?
 
