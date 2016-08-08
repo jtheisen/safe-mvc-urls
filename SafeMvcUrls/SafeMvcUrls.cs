@@ -773,11 +773,13 @@ namespace IronStone.Web.Mvc
         /// <typeparam name="C">The controller type an action of which you want to create a url to.</typeparam>
         /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
         /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
-        /// <returns>The fake proxy controller.</returns>
+        /// <returns>
+        /// The fake proxy controller.
+        /// </returns>
         public static C To<C>(String protocol = null, String hostname = null)
             where C : Controller
         {
-            return CreateProxy<C>(null, null, protocol, hostname);
+            return CreateProxy<C>(typeof(C), null, null, protocol, hostname);
         }
 
         /// <summary>
@@ -792,9 +794,7 @@ namespace IronStone.Web.Mvc
         public static C To<C>(this UrlHelper urlHelper, String protocol = null, String hostname = null)
             where C : Controller
         {
-            ControllerNanny.Assert(typeof(C));
-
-            return CreateProxy<C>(urlHelper, null, protocol, hostname);
+            return CreateProxy<C>(typeof(C), urlHelper, null, protocol, hostname);
         }
 
         /// <summary>
@@ -810,11 +810,7 @@ namespace IronStone.Web.Mvc
         public static C To<C>(this UrlHelper urlHelper, RouteValueDictionary routeValues, String protocol = null, String hostname = null)
             where C : Controller
         {
-            ControllerNanny.Assert(typeof(C));
-
-            var interceptor = new ActionUrlCreatingInterceptor(typeof(C), urlHelper, routeValues, protocol, hostname);
-
-            return CreateProxy<C>(urlHelper, routeValues, protocol, hostname);
+            return CreateProxy<C>(typeof(C), urlHelper, routeValues, protocol, hostname);
         }
 
         /// <summary>
@@ -830,13 +826,80 @@ namespace IronStone.Web.Mvc
         public static C To<C>(this UrlHelper urlHelper, Object routeValues, String protocol = null, String hostname = null)
             where C : Controller
         {
-            ControllerNanny.Assert(typeof(C));
-
             var dict = new RouteValueDictionary(routeValues);
 
-            var interceptor = new ActionUrlCreatingInterceptor(typeof(C), urlHelper, dict, protocol, hostname);
+            return CreateProxy<C>(typeof(C), urlHelper, dict, protocol, hostname);
+        }
 
-            return CreateProxy<C>(urlHelper, dict, protocol, hostname);
+        /// <summary>
+        /// Returns a fake proxy controller the action methods of which, instead of their usual implementation,
+        /// return fake objects that return the url to that controller action when having ".ToString()" called on them.
+        /// </summary>
+        /// <typeparam name="C">The controller type an action of which you want to create a url to.</typeparam>
+        /// <param name="type">The most derived type of the controller in case it is not know at compile time.</param>
+        /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
+        /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
+        /// <returns>
+        /// The fake proxy controller.
+        /// </returns>
+        public static C To<C>(Type type, String protocol = null, String hostname = null)
+            where C : Controller
+        {
+            return CreateProxy<C>(type, null, null, protocol, hostname);
+        }
+
+        /// <summary>
+        /// Returns a fake proxy controller the action methods of which, instead of their usual implementation,
+        /// return fake objects that return the url to that controller action when having ".ToString()" called on them.
+        /// </summary>
+        /// <typeparam name="C">The controller type an action of which you want to create a url to.</typeparam>
+        /// <param name="urlHelper">Can be retrieved from <c>Url</c> property on both the controller and the view classes.</param>
+        /// <param name="type">The most derived type of the controller in case it is not know at compile time.</param>
+        /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
+        /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
+        /// <returns>
+        /// The fake proxy controller.
+        /// </returns>
+        public static C To<C>(this UrlHelper urlHelper, Type type, String protocol = null, String hostname = null)
+            where C : Controller
+        {
+            return CreateProxy<C>(type, urlHelper, null, protocol, hostname);
+        }
+
+        /// <summary>
+        /// Returns a fake proxy controller the action methods of which, instead of their usual implementation,
+        /// return fake objects that return the url to that controller action when having ".ToString()" called on them.
+        /// </summary>
+        /// <typeparam name="C">The controller type an action of which you want to create a url to.</typeparam>
+        /// <param name="urlHelper">Can be retrieved from <c>Url</c> property on both the controller and the view classes.</param>
+        /// <param name="routeValues">Optional route values. Those can be overridden by what is derived from the action call.</param>
+        /// <param name="type">The most derived type of the controller in case it is not know at compile time.</param>
+        /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
+        /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
+        /// <returns></returns>
+        public static C To<C>(this UrlHelper urlHelper, Type type, RouteValueDictionary routeValues, String protocol = null, String hostname = null)
+            where C : Controller
+        {
+            return CreateProxy<C>(type, urlHelper, routeValues, protocol, hostname);
+        }
+
+        /// <summary>
+        /// Returns a fake proxy controller the action methods of which, instead of their usual implementation,
+        /// return fake objects that return the url to that controller action when having ".ToString()" called on them.
+        /// </summary>
+        /// <typeparam name="C">The controller type an action of which you want to create a url to.</typeparam>
+        /// <param name="urlHelper">Can be retrieved from <c>Url</c> property on both the controller and the view classes.</param>
+        /// <param name="type">The most derived type of the controller in case it is not know at compile time.</param>
+        /// <param name="routeValues">Optional route values. Those can be overridden by what is derived from the action call.</param>
+        /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
+        /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
+        /// <returns></returns>
+        public static C To<C>(this UrlHelper urlHelper, Type type, Object routeValues, String protocol = null, String hostname = null)
+            where C : Controller
+        {
+            var dict = new RouteValueDictionary(routeValues);
+
+            return CreateProxy<C>(type, urlHelper, dict, protocol, hostname);
         }
 
         /// <summary>
@@ -895,14 +958,19 @@ namespace IronStone.Web.Mvc
             html.RenderAction(expression.ActionName, expression.ControllerName, expression.Values);
         }
 
-        static C CreateProxy<C>(UrlHelper urlHelper, RouteValueDictionary routeValues, String protocol, String hostname)
+        static C CreateProxy<C>(Type type, UrlHelper urlHelper, RouteValueDictionary routeValues, String protocol, String hostname)
             where C : Controller
         {
+            ControllerNanny.Assert(type);
+
+            if (type != typeof(C) && !type.IsSubclassOf(typeof(C)))
+                throw new ArgumentException($"The specified type {type.Name} does not derive from {nameof(C)}", nameof(type));
+
             try
             {
                 areInControllerCreation = true;
 
-                return generator.CreateClassProxy(typeof(C), interfaces, new ActionUrlCreatingInterceptor(typeof(C), urlHelper, routeValues, protocol, hostname)) as C;
+                return generator.CreateClassProxy(type, interfaces, new ActionUrlCreatingInterceptor(type, urlHelper, routeValues, protocol, hostname)) as C;
             }
             finally
             {
@@ -1125,6 +1193,7 @@ namespace IronStone.Web.Mvc
                 AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
                 AssertEqual(Url.To<GoodController>().Asyncy("foo"), "/Good/Asyncy?s=foo");
 
+                AssertEqual(Url.To<GoodController>(typeof(DerivedController)).Trivial(), "/Derived/Trivial");
                 AssertEqual(Url.To<DerivedController>().Trivial(), "/Derived/Trivial");
                 AssertEqual(Url.To<DerivedController>().AnotherTrivial(), "/Derived/AnotherTrivial");
 
