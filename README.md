@@ -89,7 +89,7 @@ Both packages address the same problem, the difference is mostly in the implemen
 
 ## Differences in Implementation
 
-T4MVC uses T4 code generation, SafeMvcUrls uses another well-know heavy gun designed to tackle problems of code generation: [Dynamic Proxy](http://www.castleproject.org/projects/dynamicproxy/).
+T4MVC uses T4 code generation, SafeMvcUrls uses another well-known heavy gun designed to tackle problems of code generation: [Dynamic Proxy](http://www.castleproject.org/projects/dynamicproxy/).
 
 Depending on how you look at it, that makes SafeMvcUrls more or less light-weight: Both T4MVC and SafeMvcUrls create fake proxy controllers that create urls from their dummy implementations, but SafeMvcUrls doesn't create source files during the build process. Rather, it uses Dynamic Proxy to create those classes at runtime.
 
