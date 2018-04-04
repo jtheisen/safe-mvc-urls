@@ -681,7 +681,9 @@ namespace IronStone.Web.Mvc
                 var p = parameters[i];
                 var a = invocation.Arguments[i];
 
-                if (p.ParameterType.GetCustomAttribute<MvcParameterAggregateAttribute>(true) != null)
+                var attributes = p.ParameterType.GetCustomAttributes(true);
+
+                if (attributes.Any(t => t.GetType().Name == "MvcParameterAggregateAttribute"))
                 {
                     MvcAggregateHelper.AddValues(values, p.ParameterType, a);
                 }
@@ -1065,6 +1067,7 @@ namespace IronStone.Web.Mvc
 
             public virtual ActionResult NamedParams(String a = "a", String b = "b") { return View(); }
 
+            public virtual ActionResult AggregateParameter(SomeAggregate aggregate) { return View(); }
 
             [ActionName("explicitly-named")]
             public virtual ActionResult ExplicitlyNamed() { return View(); }
@@ -1100,6 +1103,17 @@ namespace IronStone.Web.Mvc
             public virtual ViewResult ViewResult() { return View(); }
 
             public virtual Task<ViewResult> TaskViewResult() { return null; }
+        }
+
+        // We're deliberately defining this one again in order to test if we can - what's checked
+        // is the name, not the type itself.
+        public class MvcParameterAggregateAttribute : Attribute { }
+
+        [MvcParameterAggregate]
+        public class SomeAggregate
+        {
+            public String Value1 { get; set; }
+            public String Value2 { get; set; } = "def";
         }
 
         class MockResponse : HttpResponseBase
@@ -1188,6 +1202,11 @@ namespace IronStone.Web.Mvc
                 AssertEqual(Url.To<GoodController>(new { s = "default" }).WithDefaultString(), "/Good/WithDefaultString?s=default");
 
                 AssertEqual(Url.To<GoodController>().NamedParams(b: "x"), "/Good/NamedParams?b=x");
+
+                AssertEqual(Url.To<GoodController>().AggregateParameter(new SomeAggregate { Value1 = "foo", Value2 = "bar" }), "/Good/AggregateParameter?Value1=foo&Value2=bar");
+                AssertEqual(Url.To<GoodController>().AggregateParameter(new SomeAggregate { Value1 = "foo" }), "/Good/AggregateParameter?Value1=foo");
+                AssertEqual(Url.To<GoodController>().AggregateParameter(new SomeAggregate { Value2 = "bar" }), "/Good/AggregateParameter?Value2=bar");
+                AssertEqual(Url.To<GoodController>().AggregateParameter(null), "/Good/AggregateParameter");
 
                 AssertEqual(Url.To<GoodController>().ExplicitlyNamed(), "/Good/explicitly-named");
                 AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
