@@ -138,6 +138,7 @@ namespace IronStone.Web.Mvc.SafeMvcUrls
 namespace IronStone.Web.Mvc
 {
     using SafeMvcUrls;
+    using System.Globalization;
 
     /// <summary>
     /// All controller implementations made by the .To&lt;C> overloads
@@ -693,7 +694,7 @@ namespace IronStone.Web.Mvc
                     {
                         if (null != a)
                         {
-                            values[parameters[i].Name] = Stringify(a);
+                            values[parameters[i].Name] = a;
                         }
                     }
                 }
@@ -725,11 +726,6 @@ namespace IronStone.Web.Mvc
             first = first.ReflectedType == first.DeclaringType ? first : first.DeclaringType.GetMethod(first.Name, first.GetParameters().Select(p => p.ParameterType).ToArray());
             second = second.ReflectedType == second.DeclaringType ? second : second.DeclaringType.GetMethod(second.Name, second.GetParameters().Select(p => p.ParameterType).ToArray());
             return first == second;
-        }
-
-        static Object Stringify(Object o)
-        {
-            return o.ToString();
         }
 
         internal static Boolean IsAcceptableAsReturnType(Type type)
@@ -1057,6 +1053,8 @@ namespace IronStone.Web.Mvc
 
             public virtual ActionResult Simple(Guid g) { return View(); }
 
+            public virtual ActionResult Simple(DateTimeOffset d) { return View(); }
+
 
             public virtual ActionResult WithDefaultString(String s = "default") { return View(); }
 
@@ -1182,6 +1180,8 @@ namespace IronStone.Web.Mvc
                 AssertEqual(Url.To<GoodController>().Simple("foo"), "/Good/Simple?s=foo");
                 AssertEqual(Url.To<GoodController>().Simple(42), "/Good/Simple?i=42");
                 AssertEqual(Url.To<GoodController>().Simple(someGuid), "/Good/Simple?g=" + someGuid);
+                AssertEqual(Url.To<GoodController>().Simple(someDateTimeOffset),
+                    "/Good/Simple?d=" + HttpUtility.UrlEncode(someDateTimeOffset.ToString(CultureInfo.InvariantCulture)));
 
                 AssertEqual(Url.To<GoodController>().WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
                 AssertEqual(Url.To<GoodController>().WithDefaultString("default"), "/Good/WithDefaultString");
@@ -1244,6 +1244,8 @@ namespace IronStone.Web.Mvc
             }
 
             static readonly Guid someGuid = Guid.NewGuid();
+
+            static readonly DateTimeOffset someDateTimeOffset = DateTimeOffset.Now;
 
             private UrlHelper Url { get { return url; } }
 
