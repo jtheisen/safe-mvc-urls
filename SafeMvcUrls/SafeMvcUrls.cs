@@ -1180,8 +1180,8 @@ namespace IronStone.Web.Mvc
                 AssertEqual(Url.To<GoodController>().Simple("foo"), "/Good/Simple?s=foo");
                 AssertEqual(Url.To<GoodController>().Simple(42), "/Good/Simple?i=42");
                 AssertEqual(Url.To<GoodController>().Simple(someGuid), "/Good/Simple?g=" + someGuid);
-                AssertEqual(Url.To<GoodController>().Simple(someDateTimeOffset),
-                    "/Good/Simple?d=" + HttpUtility.UrlEncode(someDateTimeOffset.ToString(CultureInfo.InvariantCulture)));
+                AssertEqual(Url.To<GoodController>().Simple(someDateTimeOffset), "/Good/Simple?d="
+                    + HttpUtility.UrlEncode(someDateTimeOffset.ToString(CultureInfo.InvariantCulture)).Replace("+", "%20").ToUpper());
 
                 AssertEqual(Url.To<GoodController>().WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
                 AssertEqual(Url.To<GoodController>().WithDefaultString("default"), "/Good/WithDefaultString");
