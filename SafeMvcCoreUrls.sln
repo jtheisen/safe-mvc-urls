@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29806.167
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1EA7E322-05AE-4F91-BACE-70E6066F3690}"
+	ProjectSection(SolutionItems) = preProject
+		appveyor.yml = appveyor.yml
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SafeMvcCoreUrls", "SafeMvcCoreUrls\SafeMvcCoreUrls.csproj", "{62E59A7A-E98A-4101-967C-E6C4DA0A1ACE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SaveMvcCoreUrls.WebTest", "SaveMvcCoreUrls.WebTest\SaveMvcCoreUrls.WebTest.csproj", "{F86F18C7-1ADA-427E-A4D0-719E7B756B81}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{62E59A7A-E98A-4101-967C-E6C4DA0A1ACE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62E59A7A-E98A-4101-967C-E6C4DA0A1ACE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62E59A7A-E98A-4101-967C-E6C4DA0A1ACE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62E59A7A-E98A-4101-967C-E6C4DA0A1ACE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F86F18C7-1ADA-427E-A4D0-719E7B756B81}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F86F18C7-1ADA-427E-A4D0-719E7B756B81}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F86F18C7-1ADA-427E-A4D0-719E7B756B81}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F86F18C7-1ADA-427E-A4D0-719E7B756B81}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AA19CF90-3C26-4A8C-A828-FABE8073743F}
+	EndGlobalSection
+EndGlobal

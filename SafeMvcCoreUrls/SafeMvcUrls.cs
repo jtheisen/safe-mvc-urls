@@ -123,7 +123,7 @@ namespace IronStone.Web.Mvc.SafeMvcUrls
 
             if (!ActionUrlCreatingInterceptor.IsAcceptableAsReturnType(info.ReturnType))
             {
-                yield return new ControllerProblem(info, "Any controller you want to use one of the .To<> overloads of SafeMvcUrls on needs to have all their actions return either ActionResult or Task<ActionResult>.");
+                yield return new ControllerProblem(info, "Any controller you want to use one of the .To<> overloads of SafeMvcUrls on needs to have all their actions return either IActionResult or Task<IActionResult>.");
             }
 
             if (!info.IsVirtual)
@@ -309,7 +309,7 @@ namespace IronStone.Web.Mvc
         /// </summary>
         /// <param name="url">The `UrlHelper` to use.</param>
         /// <returns>The URL corresponding to the expression.</returns>
-        public String GetUrl(UrlHelper url)
+        public String GetUrl(IUrlHelper url)
         {
             var values = new RouteValueDictionary(Values);
 
@@ -359,7 +359,7 @@ namespace IronStone.Web.Mvc
 
     class ActionResultExpressionProvider : ActionResult, IMvcActionExpressionProvider
     {
-        public ActionResultExpressionProvider(MvcActionExpression expression, UrlHelper urlHelper = null)
+        public ActionResultExpressionProvider(MvcActionExpression expression, IUrlHelper urlHelper = null)
         {
             this.expression = expression;
             this.urlHelper = urlHelper;
@@ -389,12 +389,12 @@ namespace IronStone.Web.Mvc
 
         MvcActionExpression expression;
 
-        UrlHelper urlHelper;
+        IUrlHelper urlHelper;
     }
 
     class ActionResultTaskExpressionProvider : Task<ActionResult>, IMvcActionExpressionProvider
     {
-        public ActionResultTaskExpressionProvider(MvcActionExpression expression, UrlHelper urlHelper = null)
+        public ActionResultTaskExpressionProvider(MvcActionExpression expression, IUrlHelper urlHelper = null)
             : base(Impl)
         {
             this.expression = expression;
@@ -425,7 +425,7 @@ namespace IronStone.Web.Mvc
 
         MvcActionExpression expression;
 
-        UrlHelper urlHelper;
+        IUrlHelper urlHelper;
     }
 
     #endregion
@@ -434,6 +434,7 @@ namespace IronStone.Web.Mvc
 
     class ControllerDescriptorCache
     {
+        public String ControllerName { get; set; }
         public Type ControllerType { get; set; }
         public ControllerActionDescriptor[] Actions { get; set; }
         public IActionDescriptorCollectionProvider Provider { get; set; }
@@ -442,7 +443,7 @@ namespace IronStone.Web.Mvc
         {
             if (cache == null)
             {
-                lock(typeof(ControllerDescriptorCache))
+                lock (typeof(ControllerDescriptorCache))
                 {
                     cache = Create(services);
                 }
@@ -460,10 +461,11 @@ namespace IronStone.Web.Mvc
 
             var result = (
                 from a in allActions.OfType<ControllerActionDescriptor>()
-                group a by a.ControllerTypeInfo.AsType() into g
+                group a by (type: a.ControllerTypeInfo.AsType(), name: a.ControllerName) into g
                 select new ControllerDescriptorCache
                 {
-                    ControllerType = g.Key,
+                    ControllerName = g.Key.name,
+                    ControllerType = g.Key.type,
                     Actions = g.ToArray(),
                     Provider = provider
                 }
@@ -471,111 +473,6 @@ namespace IronStone.Web.Mvc
 
             return result;
         }
-    }
-
-    #endregion
-
-    #region AreaRegistration discovery
-
-    class AreaCache
-    {
-        static Lazy<AreaCache> instance = new Lazy<AreaCache>(() => new AreaCache());
-
-        private AreaCache() { }
-
-        internal static String GetArea(Type controllerType)
-        {
-            return instance.Value.GetControllerArea(controllerType);
-        }
-
-        String GetControllerArea(Type controllerType)
-        {
-            String value;
-
-            if (controllerToArea.TryGetValue(controllerType, out value)) return value;
-
-            controllerToArea[controllerType] = value = SearchForControllerArea(controllerType);
-
-            return value;
-        }
-
-        String SearchForControllerArea(Type controllerType)
-        {
-            lock (typeof(AreaCache))
-            {
-                EnsureAssemblyChecked(controllerType.GetTypeInfo().Assembly);
-
-                var ns = controllerType.Namespace;
-
-                var fragments = ns.Split('.');
-
-                for (int i = fragments.Length; i > 0; --i)
-                {
-                    var subpath = String.Join(".", fragments.Take(i));
-
-                    if (namespaceToArea.ContainsKey(subpath))
-                    {
-                        return namespaceToArea[subpath];
-                    }
-                }
-
-                return null;
-            }
-        }
-
-        void EnsureAssemblyChecked(Assembly assembly)
-        {
-            if (checkedAssemblies.Contains(assembly)) return;
-
-            var registrationTypes =
-                assembly.GetTypes().Where(t => t.GetTypeInfo().IsSubclassOf(typeof(AreaRegistration)));
-
-            foreach (var registrationType in registrationTypes)
-            {
-                var registration = Activator.CreateInstance(registrationType) as AreaRegistration;
-
-                if (areasToRegistrations.ContainsKey(registration.AreaName))
-                {
-                    var formerType = areasToRegistrations[registration.AreaName];
-
-                    throw new Exception(String.Format(
-                        "Area '{0}' has multiple AreaRegistrations classes defined: {1} in {2} and {3} in {4}.",
-                        registration.AreaName,
-                        registrationType.FullName, registrationType.AssemblyQualifiedName,
-                        formerType.FullName, formerType.AssemblyQualifiedName
-                        ));
-                }
-
-                areasToRegistrations.Add(registration.AreaName, registrationType);
-
-                if (namespaceToRegistration.ContainsKey(registrationType.Namespace))
-                {
-                    var formerType = namespaceToRegistration[registrationType.Namespace];
-
-                    throw new Exception(String.Format(
-                        "Namespace '{0}' contains multiple AreaRegistrations classes: {1} in {2} and {3} in {4}",
-                        registrationType.Namespace,
-                        registrationType.FullName, registrationType.AssemblyQualifiedName,
-                        formerType.FullName, formerType.AssemblyQualifiedName
-                        ));
-                }
-
-                namespaceToRegistration.Add(registrationType.Namespace, registrationType);
-                namespaceToArea.Add(registrationType.Namespace, registration.AreaName);
-            }
-
-            checkedAssemblies.Add(assembly);
-        }
-
-        HashSet<Assembly> checkedAssemblies = new HashSet<Assembly>();
-
-        Dictionary<String, Type> areasToRegistrations = new Dictionary<String, Type>();
-
-        Dictionary<String, Type> namespaceToRegistration = new Dictionary<String, Type>();
-
-        Dictionary<String, String> namespaceToArea = new Dictionary<String, String>();
-
-        ConcurrentDictionary<Type, String> controllerToArea = new ConcurrentDictionary<Type, String>();
     }
 
     #endregion
@@ -601,7 +498,7 @@ namespace IronStone.Web.Mvc
         /// <param name="url">The used url helper.</param>
         /// <param name="expression">The action expression.</param>
         /// <param name="values">The route values to tweak.</param>
-        public virtual void OnBeforeUrlCreation(UrlHelper url, MvcActionExpression expression, RouteValueDictionary values) { }
+        public virtual void OnBeforeUrlCreation(IUrlHelper url, MvcActionExpression expression, RouteValueDictionary values) { }
 
         /// <summary>
         /// Called before a call to `MvcActionExpression.GetUrl(UrlHelper url)` returns to deliver the actual URL to
@@ -629,7 +526,7 @@ namespace IronStone.Web.Mvc
 
     class ActionUrlCreatingInterceptor : IInterceptor
     {
-        public ActionUrlCreatingInterceptor(Type controllerType, UrlHelper urlHelper = null, RouteValueDictionary values = null, String protocol = null, String hostname = null)
+        public ActionUrlCreatingInterceptor(Type controllerType, IUrlHelper urlHelper = null, RouteValueDictionary values = null, String protocol = null, String hostname = null)
         {
             this.controllerType = controllerType;
             this.values = values;
@@ -666,14 +563,12 @@ namespace IronStone.Web.Mvc
 
             if (actionDescriptor == null) throw new Exception(String.Format("You called the controller method {0} which MVC thinks is not an action on the helper returned by one of the *To() overloads.", invocation.Method));
 
-            var area = AreaCache.GetArea(controllerType);
-
             // Strange that ActionDescriptor.ActionName doesn't always return the action's name...
             var actionNameAttribute = actionDescriptor.MethodInfo.GetCustomAttribute<ActionNameAttribute>();
             var actionName = actionNameAttribute != null ? actionNameAttribute.Name : actionDescriptor.ActionName;
 
             // as it is the case with controllers.
-            var controllerName = descriptor.ControllerType.Name;
+            var controllerName = descriptor.ControllerName;
 
             var values = new RouteValueDictionary();
 
@@ -688,11 +583,6 @@ namespace IronStone.Web.Mvc
                 {
                     values[kvp.Key] = kvp.Value;
                 }
-            }
-
-            if (area != null)
-            {
-                values["area"] = area;
             }
 
             var parameters = invocation.Method.GetParameters();
@@ -753,8 +643,8 @@ namespace IronStone.Web.Mvc
 
         internal static Boolean IsAcceptableAsReturnType(Type type)
         {
-            if (type == typeof(ActionResult)) return true;
-            if (type == typeof(Task<ActionResult>)) return true;
+            if (typeof(IActionResult).IsAssignableFrom(type)) return true;
+            if (typeof(Task<IActionResult>).IsAssignableFrom(type)) return true;
             return false;
         }
 
@@ -772,7 +662,7 @@ namespace IronStone.Web.Mvc
         }
 
         Type controllerType;
-        UrlHelper urlHelper;
+        IUrlHelper urlHelper;
         RouteValueDictionary values;
         String protocol;
         String hostname;
@@ -812,7 +702,7 @@ namespace IronStone.Web.Mvc
         /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
         /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
         /// <returns>The fake proxy controller.</returns>
-        public static C To<C>(this UrlHelper urlHelper, String protocol = null, String hostname = null)
+        public static C To<C>(this IUrlHelper urlHelper, String protocol = null, String hostname = null)
             where C : Controller
         {
             return CreateProxy<C>(typeof(C), urlHelper, null, protocol, hostname);
@@ -828,7 +718,7 @@ namespace IronStone.Web.Mvc
         /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
         /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
         /// <returns></returns>
-        public static C To<C>(this UrlHelper urlHelper, RouteValueDictionary routeValues, String protocol = null, String hostname = null)
+        public static C To<C>(this IUrlHelper urlHelper, RouteValueDictionary routeValues, String protocol = null, String hostname = null)
             where C : Controller
         {
             return CreateProxy<C>(typeof(C), urlHelper, routeValues, protocol, hostname);
@@ -844,7 +734,7 @@ namespace IronStone.Web.Mvc
         /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
         /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
         /// <returns></returns>
-        public static C To<C>(this UrlHelper urlHelper, Object routeValues, String protocol = null, String hostname = null)
+        public static C To<C>(this IUrlHelper urlHelper, Object routeValues, String protocol = null, String hostname = null)
             where C : Controller
         {
             var dict = new RouteValueDictionary(routeValues);
@@ -881,7 +771,7 @@ namespace IronStone.Web.Mvc
         /// <returns>
         /// The fake proxy controller.
         /// </returns>
-        public static C To<C>(this UrlHelper urlHelper, Type type, String protocol = null, String hostname = null)
+        public static C To<C>(this IUrlHelper urlHelper, Type type, String protocol = null, String hostname = null)
             where C : Controller
         {
             return CreateProxy<C>(type, urlHelper, null, protocol, hostname);
@@ -898,7 +788,7 @@ namespace IronStone.Web.Mvc
         /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
         /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
         /// <returns></returns>
-        public static C To<C>(this UrlHelper urlHelper, Type type, RouteValueDictionary routeValues, String protocol = null, String hostname = null)
+        public static C To<C>(this IUrlHelper urlHelper, Type type, RouteValueDictionary routeValues, String protocol = null, String hostname = null)
             where C : Controller
         {
             return CreateProxy<C>(type, urlHelper, routeValues, protocol, hostname);
@@ -915,7 +805,7 @@ namespace IronStone.Web.Mvc
         /// <param name="protocol">Optionally specify a protocol and this url will be absolute.</param>
         /// <param name="hostname">Optionally specify a hostname and this url will be absolute.</param>
         /// <returns></returns>
-        public static C To<C>(this UrlHelper urlHelper, Type type, Object routeValues, String protocol = null, String hostname = null)
+        public static C To<C>(this IUrlHelper urlHelper, Type type, Object routeValues, String protocol = null, String hostname = null)
             where C : Controller
         {
             var dict = new RouteValueDictionary(routeValues);
@@ -968,7 +858,7 @@ namespace IronStone.Web.Mvc
             return expression.GetExpression();
         }
 
-        static C CreateProxy<C>(Type type, UrlHelper urlHelper, RouteValueDictionary routeValues, String protocol, String hostname)
+        static C CreateProxy<C>(Type type, IUrlHelper urlHelper, RouteValueDictionary routeValues, String protocol, String hostname)
             where C : Controller
         {
             ControllerNanny.Assert(urlHelper.ActionContext.HttpContext.RequestServices, type);
@@ -980,7 +870,12 @@ namespace IronStone.Web.Mvc
             {
                 areInControllerCreation = true;
 
-                return generator.CreateClassProxy(type, interfaces, new ActionUrlCreatingInterceptor(type, urlHelper, routeValues, protocol, hostname)) as C;
+                // FIXME: we need to reflect on the controller (with the nanny) and check for a ctor that's adequate.
+                var args = new object[1];
+
+                var options = ProxyGenerationOptions.Default;
+
+                return generator.CreateClassProxy(type, interfaces, options, args, new ActionUrlCreatingInterceptor(type, urlHelper, routeValues, protocol, hostname)) as C;
             }
             finally
             {
@@ -1009,235 +904,6 @@ namespace IronStone.Web.Mvc
         public static void AddHook(AbstractSafeMvcUrlCreationHook hook)
         {
             SafeMvcUrlsHookRegistry.AddHook(hook);
-        }
-    }
-
-    #endregion
-
-    #region Tests
-
-    // Testing areas is more difficult, as the routing seems to be picked up
-    // through area registrations. We also don't want to have an area definition
-    // in the assembly, as the proper AreaRegistration.RegisterAllAreas would
-    // pick it up. The area code generally appears to work though.
-    //
-    //namespace Tests
-    //{
-    //    namespace SpecialArea
-    //    {
-    //        namespace Controllers
-    //        {
-    //            public class InSpecialAreaController : Controller
-    //            {
-    //                public virtual ActionResult Index() { return View(); }
-    //            }
-    //        }
-
-    //        public class SomeAreaRegistration : AreaRegistration
-    //        {
-    //            public override string AreaName { get { return "SpecialAreaName"; } }
-
-    //            public override void RegisterArea(AreaRegistrationContext context)
-    //            {
-    //                context.MapRoute(
-    //                    "MyArea_default",
-    //                    "MyArea2/{controller}/{action}/{id}",
-    //                    new { action = "Index", id = UrlParameter.Optional }
-    //                );
-    //            }
-    //        }
-    //    }
-    //}
-
-    namespace Tests
-    {
-        using NameValueCollection = System.Collections.Specialized.NameValueCollection;
-
-        public class GoodController : Controller
-        {
-            public virtual ActionResult Trivial() { return View(); }
-
-
-            public virtual ActionResult Simple(String s) { return View(); }
-
-            public virtual ActionResult Simple(Int32 i) { return View(); }
-
-            public virtual ActionResult Simple(Guid g) { return View(); }
-
-
-            public virtual ActionResult WithDefaultString(String s = "default") { return View(); }
-
-            public virtual ActionResult WithDefaultInt32(Int32 i = -1) { return View(); }
-
-            public virtual ActionResult WithDefaultGuid(Guid g = default(Guid)) { return View(); }
-
-
-            public virtual ActionResult NamedParams(String a = "a", String b = "b") { return View(); }
-
-
-            [ActionName("explicitly-named")]
-            public virtual ActionResult ExplicitlyNamed() { return View(); }
-
-            public virtual Task<ActionResult> Asyncy() { return null; }
-
-            public virtual Task<ActionResult> Asyncy(String s) { return null; }
-
-
-            // The nanny will allow non-virtual non-actions.
-            [NonAction]
-            public ActionResult NoAction() { return View(); }
-
-            [NoSafeMvcUrls]
-            public virtual String ExcentricAction() { return "Hello, World!"; }
-
-            // The nanny will allow void results.
-            public virtual void VoidResult() { }
-
-            // The nanny will allow non-public methods with arbitrary results.
-            protected virtual ViewResult ProtectedViewResult() { return View(); }
-        }
-
-        public class DerivedController : GoodController
-        {
-            public virtual ActionResult AnotherTrivial() { return View(); }
-        }
-
-        public class BadController : Controller
-        {
-            public ActionResult NonVirtual() { return View(); }
-
-            public virtual ViewResult ViewResult() { return View(); }
-
-            public virtual Task<ViewResult> TaskViewResult() { return null; }
-        }
-
-        class MockResponse : HttpResponse
-        {
-            public override string ApplyAppPathModifier(String virtualPath)
-            {
-                return virtualPath;
-            }
-        }
-
-        class MockRequest : HttpRequestBase
-        {
-            public override string ApplicationPath { get { return "/"; } }
-
-            public override Uri Url { get { return new Uri("http://www.example.com", UriKind.Absolute); } }
-
-            public override System.Collections.Specialized.NameValueCollection ServerVariables { get { return nvc; } }
-
-            NameValueCollection nvc = new NameValueCollection();
-        }
-
-        class MockContext : HttpContextBase
-        {
-            public override HttpRequestBase Request { get { return request; } }
-
-            public override HttpResponseBase Response { get { return response; } }
-
-            MockRequest request = new MockRequest();
-            MockResponse response = new MockResponse();
-        }
-
-        /// <summary>
-        /// A unit test suite for SafeMvcUrls
-        /// </summary>
-        public class Tests
-        {
-            /// <summary>
-            /// Runs the tests.
-            /// </summary>
-            public static void RunTests()
-            {
-                var tests = new Tests();
-                tests.Test();
-            }
-
-            Tests()
-            {
-                var routes = new RouteCollection();
-
-                routes.MapRoute(
-                    name: "Default",
-                    url: "{controller}/{action}"
-                );
-
-
-                url = new UrlHelper(new RequestContext(new MockContext(), new RouteData()), routes);
-            }
-
-            void Test()
-            {
-                AssertEqual(Url.To<GoodController>().Trivial(), "/Good/Trivial");
-
-                AssertEqual(Url.To<GoodController>(protocol: "https").Trivial(), "https://www.example.com/Good/Trivial");
-                AssertEqual(Url.To<GoodController>(hostname: "localhost").Trivial(), "http://localhost/Good/Trivial");
-
-                AssertEqual(Url.To<GoodController>().Simple("foo"), "/Good/Simple?s=foo");
-                AssertEqual(Url.To<GoodController>().Simple(42), "/Good/Simple?i=42");
-                AssertEqual(Url.To<GoodController>().Simple(someGuid), "/Good/Simple?g=" + someGuid);
-
-                AssertEqual(Url.To<GoodController>().WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
-                AssertEqual(Url.To<GoodController>().WithDefaultString("default"), "/Good/WithDefaultString");
-                AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
-
-                AssertEqual(Url.To<GoodController>().WithDefaultInt32(42), "/Good/WithDefaultInt32?i=42");
-                AssertEqual(Url.To<GoodController>().WithDefaultInt32(-1), "/Good/WithDefaultInt32");
-                AssertEqual(Url.To<GoodController>().WithDefaultInt32(), "/Good/WithDefaultInt32");
-
-                AssertEqual(Url.To<GoodController>().WithDefaultGuid(), "/Good/WithDefaultGuid");
-                AssertEqual(Url.To<GoodController>().WithDefaultGuid(Guid.Empty), "/Good/WithDefaultGuid");
-                AssertEqual(Url.To<GoodController>().WithDefaultGuid(someGuid), "/Good/WithDefaultGuid?g=" + someGuid);
-
-                AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
-                AssertEqual(Url.To<GoodController>(new { x = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?x=bar&s=foo");
-                AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
-                AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString(), "/Good/WithDefaultString?s=bar");
-                AssertEqual(Url.To<GoodController>(new { s = "default" }).WithDefaultString(), "/Good/WithDefaultString?s=default");
-
-                AssertEqual(Url.To<GoodController>().NamedParams(b: "x"), "/Good/NamedParams?b=x");
-
-                AssertEqual(Url.To<GoodController>().ExplicitlyNamed(), "/Good/explicitly-named");
-                AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
-                AssertEqual(Url.To<GoodController>().Asyncy("foo"), "/Good/Asyncy?s=foo");
-
-                AssertEqual(Url.To<GoodController>(typeof(DerivedController)).Trivial(), "/Derived/Trivial");
-                AssertEqual(Url.To<DerivedController>().Trivial(), "/Derived/Trivial");
-                AssertEqual(Url.To<DerivedController>().AnotherTrivial(), "/Derived/AnotherTrivial");
-
-
-                // TODO: Test areas.
-                //AssertEqual(Url.To<InSpecialAreaController>().Index(), "/SpecialAreaName/InSpecialArea");
-
-                try
-                {
-                    Url.To<BadController>();
-                }
-                catch (ControllerProblemsException ex)
-                {
-                    var expectedProblems = 3;
-
-                    if (ex.Problems.Length != expectedProblems)
-                    {
-                        throw new Exception(String.Format("Expected {0} problems in the bad controller, but got {1}.", expectedProblems, ex.Problems.Length));
-                    }
-                }
-            }
-
-            void AssertEqual(Object result, String expectation)
-            {
-                if (result.ToString() != expectation)
-                {
-                    throw new Exception(String.Format("Test failure: Expected {0}, but got {1}.", expectation, result));
-                }
-            }
-
-            static readonly Guid someGuid = Guid.NewGuid();
-
-            private UrlHelper Url { get { return url; } }
-
-            UrlHelper url;
         }
     }
 
