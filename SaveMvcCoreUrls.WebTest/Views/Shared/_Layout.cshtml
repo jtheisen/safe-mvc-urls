@@ -25,7 +25,10 @@
                             <a class="nav-link text-dark" href="@(Url.To<HomeController>().Privacy())">Privacy</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" href="@(Url.To<HomeController>().Foo(42))">Privacy</a>
+                            <a class="nav-link text-dark" href="@(Url.To<HomeController>().Foo(42))">Foo</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" href="@(Url.To<HomeController>().Bar(new HomeController.BarParams { X = "x", Y = "y", N = new HomeController.BarNestedParam { Z = "z" } }))">Bar</a>
                         </li>
                     </ul>
                 </div>

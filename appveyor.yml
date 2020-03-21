@@ -1,6 +1,6 @@
 environment:
-  version: 1.6
-  versionSuffix:
+  version: 2.0
+  versionSuffix: p1
 
 init:
 - ps: $env:buildVersion = "$env:version$env:versionSuffix.$env:appveyor_build_number"

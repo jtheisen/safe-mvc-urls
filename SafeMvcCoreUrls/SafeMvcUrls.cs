@@ -908,4 +908,233 @@ namespace IronStone.Web.Mvc
     }
 
     #endregion
+
+    #region Tests // Commented out for now, testing has become more difficult in ASP.NET Core
+
+    // Testing areas is more difficult, as the routing seems to be picked up
+    // through area registrations. We also don't want to have an area definition
+    // in the assembly, as the proper AreaRegistration.RegisterAllAreas would
+    // pick it up. The area code generally appears to work though.
+    //
+    //namespace Tests
+    //{
+    //    namespace SpecialArea
+    //    {
+    //        namespace Controllers
+    //        {
+    //            public class InSpecialAreaController : Controller
+    //            {
+    //                public virtual ActionResult Index() { return View(); }
+    //            }
+    //        }
+
+    //        public class SomeAreaRegistration : AreaRegistration
+    //        {
+    //            public override string AreaName { get { return "SpecialAreaName"; } }
+
+    //            public override void RegisterArea(AreaRegistrationContext context)
+    //            {
+    //                context.MapRoute(
+    //                    "MyArea_default",
+    //                    "MyArea2/{controller}/{action}/{id}",
+    //                    new { action = "Index", id = UrlParameter.Optional }
+    //                );
+    //            }
+    //        }
+    //    }
+    //}
+
+    //namespace Tests
+    //{
+    //    using System.Web;
+    //    using NameValueCollection = System.Collections.Specialized.NameValueCollection;
+
+    //    public class GoodController : Controller
+    //    {
+    //        public virtual ActionResult Trivial() { return View(); }
+
+
+    //        public virtual ActionResult Simple(String s) { return View(); }
+
+    //        public virtual ActionResult Simple(Int32 i) { return View(); }
+
+    //        public virtual ActionResult Simple(Guid g) { return View(); }
+
+
+    //        public virtual ActionResult WithDefaultString(String s = "default") { return View(); }
+
+    //        public virtual ActionResult WithDefaultInt32(Int32 i = -1) { return View(); }
+
+    //        public virtual ActionResult WithDefaultGuid(Guid g = default(Guid)) { return View(); }
+
+
+    //        public virtual ActionResult NamedParams(String a = "a", String b = "b") { return View(); }
+
+
+    //        [ActionName("explicitly-named")]
+    //        public virtual ActionResult ExplicitlyNamed() { return View(); }
+
+    //        public virtual Task<ActionResult> Asyncy() { return null; }
+
+    //        public virtual Task<ActionResult> Asyncy(String s) { return null; }
+
+
+    //        // The nanny will allow non-virtual non-actions.
+    //        [NonAction]
+    //        public ActionResult NoAction() { return View(); }
+
+    //        [NoSafeMvcUrls]
+    //        public virtual String ExcentricAction() { return "Hello, World!"; }
+
+    //        // The nanny will allow void results.
+    //        public virtual void VoidResult() { }
+
+    //        // The nanny will allow non-public methods with arbitrary results.
+    //        protected virtual ViewResult ProtectedViewResult() { return View(); }
+    //    }
+
+    //    public class DerivedController : GoodController
+    //    {
+    //        public virtual ActionResult AnotherTrivial() { return View(); }
+    //    }
+
+    //    public class BadController : Controller
+    //    {
+    //        public ActionResult NonVirtual() { return View(); }
+
+    //        public virtual ViewResult ViewResult() { return View(); }
+
+    //        public virtual Task<ViewResult> TaskViewResult() { return null; }
+    //    }
+
+    //    //class MockResponse : HttpResponseBase
+    //    //{
+    //    //    public override string ApplyAppPathModifier(String virtualPath)
+    //    //    {
+    //    //        return virtualPath;
+    //    //    }
+    //    //}
+
+    //    //class MockRequest : HttpRequestBase
+    //    //{
+    //    //    public override string ApplicationPath { get { return "/"; } }
+
+    //    //    public override Uri Url { get { return new Uri("http://www.example.com", UriKind.Absolute); } }
+
+    //    //    public override System.Collections.Specialized.NameValueCollection ServerVariables { get { return nvc; } }
+
+    //    //    NameValueCollection nvc = new NameValueCollection();
+    //    //}
+
+    //    //class MockContext : HttpContextBase
+    //    //{
+    //    //    public override HttpRequestBase Request { get { return request; } }
+
+    //    //    public override HttpResponseBase Response { get { return response; } }
+
+    //    //    MockRequest request = new MockRequest();
+    //    //    MockResponse response = new MockResponse();
+    //    //}
+
+    //    /// <summary>
+    //    /// A unit test suite for SafeMvcUrls
+    //    /// </summary>
+    //    public class Tests
+    //    {
+    //        /// <summary>
+    //        /// Runs the tests.
+    //        /// </summary>
+    //        public static void RunTests()
+    //        {
+    //            var tests = new Tests();
+    //            tests.Test();
+    //        }
+
+    //        Tests()
+    //        {
+    //            var routes = new RouteCollection();
+
+    //            routes.MapRoute(
+    //                name: "Default",
+    //                url: "{controller}/{action}"
+    //            );
+
+    //            url = new UrlHelper(new ActionContext { RouteData = new RouteData() });
+    //        }
+
+    //        void Test()
+    //        {
+    //            AssertEqual(Url.To<GoodController>().Trivial(), "/Good/Trivial");
+
+    //            AssertEqual(Url.To<GoodController>(protocol: "https").Trivial(), "https://www.example.com/Good/Trivial");
+    //            AssertEqual(Url.To<GoodController>(hostname: "localhost").Trivial(), "http://localhost/Good/Trivial");
+
+    //            AssertEqual(Url.To<GoodController>().Simple("foo"), "/Good/Simple?s=foo");
+    //            AssertEqual(Url.To<GoodController>().Simple(42), "/Good/Simple?i=42");
+    //            AssertEqual(Url.To<GoodController>().Simple(someGuid), "/Good/Simple?g=" + someGuid);
+
+    //            AssertEqual(Url.To<GoodController>().WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
+    //            AssertEqual(Url.To<GoodController>().WithDefaultString("default"), "/Good/WithDefaultString");
+    //            AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
+
+    //            AssertEqual(Url.To<GoodController>().WithDefaultInt32(42), "/Good/WithDefaultInt32?i=42");
+    //            AssertEqual(Url.To<GoodController>().WithDefaultInt32(-1), "/Good/WithDefaultInt32");
+    //            AssertEqual(Url.To<GoodController>().WithDefaultInt32(), "/Good/WithDefaultInt32");
+
+    //            AssertEqual(Url.To<GoodController>().WithDefaultGuid(), "/Good/WithDefaultGuid");
+    //            AssertEqual(Url.To<GoodController>().WithDefaultGuid(Guid.Empty), "/Good/WithDefaultGuid");
+    //            AssertEqual(Url.To<GoodController>().WithDefaultGuid(someGuid), "/Good/WithDefaultGuid?g=" + someGuid);
+
+    //            AssertEqual(Url.To<GoodController>().WithDefaultString(), "/Good/WithDefaultString");
+    //            AssertEqual(Url.To<GoodController>(new { x = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?x=bar&s=foo");
+    //            AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString("foo"), "/Good/WithDefaultString?s=foo");
+    //            AssertEqual(Url.To<GoodController>(new { s = "bar" }).WithDefaultString(), "/Good/WithDefaultString?s=bar");
+    //            AssertEqual(Url.To<GoodController>(new { s = "default" }).WithDefaultString(), "/Good/WithDefaultString?s=default");
+
+    //            AssertEqual(Url.To<GoodController>().NamedParams(b: "x"), "/Good/NamedParams?b=x");
+
+    //            AssertEqual(Url.To<GoodController>().ExplicitlyNamed(), "/Good/explicitly-named");
+    //            AssertEqual(Url.To<GoodController>().Asyncy(), "/Good/Asyncy");
+    //            AssertEqual(Url.To<GoodController>().Asyncy("foo"), "/Good/Asyncy?s=foo");
+
+    //            AssertEqual(Url.To<GoodController>(typeof(DerivedController)).Trivial(), "/Derived/Trivial");
+    //            AssertEqual(Url.To<DerivedController>().Trivial(), "/Derived/Trivial");
+    //            AssertEqual(Url.To<DerivedController>().AnotherTrivial(), "/Derived/AnotherTrivial");
+
+
+    //            // TODO: Test areas.
+    //            //AssertEqual(Url.To<InSpecialAreaController>().Index(), "/SpecialAreaName/InSpecialArea");
+
+    //            try
+    //            {
+    //                Url.To<BadController>();
+    //            }
+    //            catch (ControllerProblemsException ex)
+    //            {
+    //                var expectedProblems = 3;
+
+    //                if (ex.Problems.Length != expectedProblems)
+    //                {
+    //                    throw new Exception(String.Format("Expected {0} problems in the bad controller, but got {1}.", expectedProblems, ex.Problems.Length));
+    //                }
+    //            }
+    //        }
+
+    //        void AssertEqual(Object result, String expectation)
+    //        {
+    //            if (result.ToString() != expectation)
+    //            {
+    //                throw new Exception(String.Format("Test failure: Expected {0}, but got {1}.", expectation, result));
+    //            }
+    //        }
+
+    //        static readonly Guid someGuid = Guid.NewGuid();
+
+    //        private UrlHelper Url { get { return url; } }
+
+    //        IUrlHelper url;
+    //    }
+    //}
+
+    #endregion
 }
